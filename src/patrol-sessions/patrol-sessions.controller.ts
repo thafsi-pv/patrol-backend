@@ -31,6 +31,12 @@ export class PatrolSessionsController {
     return this.service.end(id, req.user.id, ip);
   }
 
+  @Get('my-active')
+  @Roles('ADMIN', 'GUARD')
+  getMyActive(@Request() req: any) {
+    return this.service.getMyActiveSession(req.user.id);
+  }
+
   @Get('active')
   @Roles('ADMIN', 'GUARD')
   getActive() {

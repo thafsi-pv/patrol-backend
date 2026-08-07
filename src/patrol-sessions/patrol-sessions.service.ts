@@ -15,6 +15,20 @@ export class PatrolSessionsService {
   // ─── Start a new patrol session ───────────────────────────────────────────
 
   async start(dto: StartPatrolDto, guardId: string, ipAddress?: string) {
+    // Check if guard already has an active session
+    const existingActive = await this.prisma.patrolSession.findFirst({
+      where: { guardId, status: 'IN_PROGRESS' },
+      include: {
+        route: { include: { checkpoints: { include: { checkpoint: true }, orderBy: { orderIndex: 'asc' } } } },
+        guard: { select: { id: true, name: true, email: true } },
+        sessionLogs: true,
+      },
+    });
+
+    if (existingActive) {
+      throw new BadRequestException('You already have an active patrol session in progress. Please stop/complete it before starting a new one.');
+    }
+
     const route = await this.prisma.route.findUnique({
       where: { id: dto.routeId },
       include: {
@@ -182,6 +196,22 @@ export class PatrolSessionsService {
     });
 
     return updated;
+  }
+
+  async getMyActiveSession(guardId: string) {
+    return this.prisma.patrolSession.findFirst({
+      where: { guardId, status: 'IN_PROGRESS' },
+      include: {
+        route: {
+          include: { checkpoints: { include: { checkpoint: true }, orderBy: { orderIndex: 'asc' } } },
+        },
+        guard: { select: { id: true, name: true, email: true } },
+        sessionLogs: {
+          include: { checkpoint: true, images: true },
+          orderBy: { scannedAt: 'asc' },
+        },
+      },
+    });
   }
 
   // ─── Get active sessions ──────────────────────────────────────────────────

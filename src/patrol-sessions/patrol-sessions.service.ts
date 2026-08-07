@@ -223,9 +223,11 @@ export class PatrolSessionsService {
         route: { select: { id: true, name: true } },
         guard: { select: { id: true, name: true, email: true } },
         sessionLogs: {
-          include: { checkpoint: { select: { id: true, name: true } } },
+          include: {
+            checkpoint: { select: { id: true, name: true, latitude: true, longitude: true } },
+            images: true,
+          },
           orderBy: { scannedAt: 'desc' },
-          take: 1,
         },
       },
       orderBy: { startTime: 'desc' },

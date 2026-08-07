@@ -6,9 +6,15 @@ import { ScanDto } from './dto/scan.dto';
 import { PatrolLogsFilterDto } from './dto/patrol-logs-filter.dto';
 
 // Configurable thresholds
-const MAX_SPEED_M_S = 40; // 40 m/s ≈ 144 km/h — impossible travel threshold
-const MIN_ACCURACY_M = 1; // below this is suspiciously precise for consumer GPS
-const MAX_ACCURACY_M = 15; // above 15m is too inaccurate to verify exact location
+const MAX_SPEED_M_S = 40;   // 40 m/s ≈ 144 km/h — impossible travel threshold
+const MIN_ACCURACY_M = 0.1; // below 0.1m is physically impossible from a phone
+const MAX_ACCURACY_M = 100; // above 100m is too imprecise (WiFi/cell only, no GPS fix)
+//
+// NOTE ON MOBILE GPS:
+// iOS Chrome (WKWebView) and Android Chrome typically return accuracy of 10–65m
+// even when standing exactly at the checkpoint. This is normal — browsers do not
+// get raw satellite GPS; they use Apple/Google location fusion (WiFi + cell + GPS).
+// Setting MAX_ACCURACY_M lower than ~65m will false-flag all mobile iOS scans.
 
 @Injectable()
 export class PatrolService {

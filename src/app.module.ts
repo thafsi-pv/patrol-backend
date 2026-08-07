@@ -8,6 +8,8 @@ import { PatrolModule } from './patrol/patrol.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { UsersModule } from './users/users.module';
 import { IncidentsModule } from './incidents/incidents.module';
+import { RoutesModule } from './routes/routes.module';
+import { PatrolSessionsModule } from './patrol-sessions/patrol-sessions.module';
 
 @Module({
   imports: [
@@ -18,6 +20,8 @@ import { IncidentsModule } from './incidents/incidents.module';
     CheckpointsModule,
     PatrolModule,
     IncidentsModule,
+    RoutesModule,
+    PatrolSessionsModule,
   ],
   providers: [
     {

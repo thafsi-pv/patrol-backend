@@ -20,6 +20,27 @@ enum PatrolStatus {
   FLAGGED
 }
 
+enum IncidentSeverity {
+  NORMAL
+  ISSUE_FOUND
+  EMERGENCY
+}
+
+enum SessionStatus {
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum AuditAction {
+  PATROL_STARTED
+  QR_SCANNED
+  GPS_CAPTURED
+  INCIDENT_CREATED
+  PHOTO_UPLOADED
+  PATROL_COMPLETED
+}
+
 model User {
   id            String      @id @default(uuid())
   email         String      @unique
@@ -29,9 +50,11 @@ model User {
   deviceId      String?     // optional device-binding fingerprint, set on first login
   createdAt     DateTime    @default(now())
 
-  checkpointsCreated Checkpoint[] @relation("CheckpointCreatedBy")
+  checkpointsCreated Checkpoint[]    @relation("CheckpointCreatedBy")
   patrolLogs         PatrolLog[]
   incidents          Incident[]
+  patrolSessions     PatrolSession[]
+  auditLogs          AuditLog[]
 }
 
 model Checkpoint {
@@ -41,14 +64,84 @@ model Checkpoint {
   description   String?
   latitude      Float
   longitude     Float
-  radiusMeters  Float       @default(2)
+  radiusMeters  Float       @default(20)
   active        Boolean     @default(true)
   createdAt     DateTime    @default(now())
 
-  createdById   String
-  createdBy     User        @relation("CheckpointCreatedBy", fields: [createdById], references: [id])
-  patrolLogs    PatrolLog[]
-  incidents     Incident[]
+  createdById       String
+  createdBy         User               @relation("CheckpointCreatedBy", fields: [createdById], references: [id])
+  patrolLogs        PatrolLog[]
+  incidents         Incident[]
+  routeCheckpoints  RouteCheckpoint[]
+  sessionLogs       PatrolSessionLog[]
+}
+
+model Route {
+  id          String            @id @default(uuid())
+  name        String
+  description String?
+  active      Boolean           @default(true)
+  createdAt   DateTime          @default(now())
+
+  checkpoints RouteCheckpoint[]
+  sessions    PatrolSession[]
+}
+
+model RouteCheckpoint {
+  id           String     @id @default(uuid())
+  routeId      String
+  route        Route      @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  checkpointId String
+  checkpoint   Checkpoint @relation(fields: [checkpointId], references: [id], onDelete: Cascade)
+  orderIndex   Int        @default(0)
+
+  @@unique([routeId, checkpointId])
+  @@index([routeId])
+}
+
+model PatrolSession {
+  id              String        @id @default(uuid())
+  routeId         String
+  route           Route         @relation(fields: [routeId], references: [id])
+  guardId         String
+  guard           User          @relation(fields: [guardId], references: [id])
+  startTime       DateTime      @default(now())
+  endTime         DateTime?
+  durationSeconds Int?
+  status          SessionStatus @default(IN_PROGRESS)
+  completedCount  Int           @default(0)
+  totalCount      Int           @default(0)
+  completionRate  Float         @default(0)
+  shift           String?       // Morning, Evening, Night
+
+  sessionLogs     PatrolSessionLog[]
+  auditLogs       AuditLog[]
+
+  @@index([guardId])
+  @@index([routeId])
+  @@index([startTime])
+}
+
+model PatrolSessionLog {
+  id                String           @id @default(uuid())
+  sessionId         String
+  session           PatrolSession    @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  checkpointId      String
+  checkpoint        Checkpoint       @relation(fields: [checkpointId], references: [id])
+  scannedAt         DateTime         @default(now())
+  scannedLatitude   Float
+  scannedLongitude  Float
+  gpsAccuracyMeters Float?
+  distanceMeters    Float?
+  isVerified        Boolean          @default(true)
+  severity          IncidentSeverity @default(NORMAL)
+  remarks           String?
+
+  images            IssueImage[]
+  incidents         Incident[]
+
+  @@index([sessionId])
+  @@index([checkpointId])
 }
 
 model PatrolLog {
@@ -75,18 +168,20 @@ model PatrolLog {
 }
 
 model Incident {
-  id           String       @id @default(uuid())
-  title        String
-  description  String?
-  patrolLogId  String?
-  patrolLog    PatrolLog?   @relation(fields: [patrolLogId], references: [id])
-  checkpointId String?
-  checkpoint   Checkpoint?  @relation(fields: [checkpointId], references: [id])
-  guardId      String
-  guard        User         @relation(fields: [guardId], references: [id])
-  createdAt    DateTime     @default(now())
+  id                 String            @id @default(uuid())
+  title              String
+  description        String?
+  patrolLogId        String?
+  patrolLog          PatrolLog?        @relation(fields: [patrolLogId], references: [id])
+  patrolSessionLogId String?
+  patrolSessionLog   PatrolSessionLog? @relation(fields: [patrolSessionLogId], references: [id])
+  checkpointId       String?
+  checkpoint         Checkpoint?       @relation(fields: [checkpointId], references: [id])
+  guardId            String
+  guard              User              @relation(fields: [guardId], references: [id])
+  createdAt          DateTime          @default(now())
 
-  images       IssueImage[]
+  images             IssueImage[]
 
   @@index([checkpointId])
   @@index([guardId])
@@ -94,12 +189,31 @@ model Incident {
 }
 
 model IssueImage {
-  id          String    @id @default(uuid())
-  imageUrl    String    // Public/R2 access URL stored in DB
-  r2Key       String    // R2 storage object key
-  incidentId  String
-  incident    Incident  @relation(fields: [incidentId], references: [id], onDelete: Cascade)
-  createdAt   DateTime  @default(now())
+  id                 String            @id @default(uuid())
+  imageUrl           String            // Public/Cloudinary access URL stored in DB
+  r2Key              String            // storage object key
+  incidentId         String?
+  incident           Incident?         @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  patrolSessionLogId String?
+  patrolSessionLog   PatrolSessionLog? @relation(fields: [patrolSessionLogId], references: [id], onDelete: Cascade)
+  createdAt          DateTime          @default(now())
 
   @@index([incidentId])
+  @@index([patrolSessionLogId])
+}
+
+model AuditLog {
+  id        String        @id @default(uuid())
+  action    AuditAction
+  userId    String
+  user      User          @relation(fields: [userId], references: [id])
+  sessionId String?
+  session   PatrolSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  details   String?
+  ipAddress String?
+  deviceId  String?
+  createdAt DateTime      @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
 }

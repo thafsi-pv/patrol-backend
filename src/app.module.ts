@@ -7,6 +7,7 @@ import { JwtAuthGuard } from './auth/jwt-auth.guard';
 import { PatrolModule } from './patrol/patrol.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { UsersModule } from './users/users.module';
+import { IncidentsModule } from './incidents/incidents.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { UsersModule } from './users/users.module';
     UsersModule,
     CheckpointsModule,
     PatrolModule,
+    IncidentsModule,
   ],
   providers: [
     {

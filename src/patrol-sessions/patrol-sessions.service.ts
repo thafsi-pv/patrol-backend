@@ -275,9 +275,17 @@ export class PatrolSessionsService {
         take: limit,
         orderBy: { startTime: 'desc' },
         include: {
-          route: { select: { id: true, name: true } },
+          route: {
+            include: { checkpoints: { include: { checkpoint: true }, orderBy: { orderIndex: 'asc' } } },
+          },
           guard: { select: { id: true, name: true, email: true } },
-          _count: { select: { sessionLogs: true } },
+          sessionLogs: {
+            include: {
+              checkpoint: { select: { id: true, name: true } },
+              images: true,
+            },
+            orderBy: { scannedAt: 'asc' },
+          },
         },
       }),
       this.prisma.patrolSession.count({ where }),

@@ -1,0 +1,71 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")   // pooled (pgbouncer, port 6543) — runtime
+  directUrl = env("DIRECT_URL")     // direct (port 5432) — migrations
+}
+
+enum Role {
+  ADMIN
+  GUARD
+}
+
+enum PatrolStatus {
+  SUCCESS
+  OUT_OF_RANGE
+  UNKNOWN_QR
+  FLAGGED
+}
+
+model User {
+  id            String      @id @default(uuid())
+  email         String      @unique
+  passwordHash  String
+  name          String
+  role          Role        @default(GUARD)
+  deviceId      String?     // optional device-binding fingerprint, set on first login
+  createdAt     DateTime    @default(now())
+
+  checkpointsCreated Checkpoint[] @relation("CheckpointCreatedBy")
+  patrolLogs         PatrolLog[]
+}
+
+model Checkpoint {
+  id            String      @id @default(uuid())
+  qrCode        String      @unique  // random token encoded into the QR image
+  name          String
+  description   String?
+  latitude      Float
+  longitude     Float
+  radiusMeters  Float       @default(2)
+  active        Boolean     @default(true)
+  createdAt     DateTime    @default(now())
+
+  createdById   String
+  createdBy     User        @relation("CheckpointCreatedBy", fields: [createdById], references: [id])
+  patrolLogs    PatrolLog[]
+}
+
+model PatrolLog {
+  id                 String        @id @default(uuid())
+  qrCode             String        // raw scanned value, kept even if checkpoint lookup fails
+  checkpointId       String?
+  checkpoint         Checkpoint?   @relation(fields: [checkpointId], references: [id])
+  guardId            String
+  guard              User          @relation(fields: [guardId], references: [id])
+  scannedLatitude    Float
+  scannedLongitude   Float
+  gpsAccuracyMeters  Float?
+  distanceMeters     Float?        // null if unknown QR
+  status             PatrolStatus
+  flagReason         String?       // e.g. "impossible_travel", "suspicious_accuracy"
+  deviceId           String?
+  createdAt          DateTime      @default(now())
+
+  @@index([checkpointId])
+  @@index([guardId])
+  @@index([createdAt])
+}

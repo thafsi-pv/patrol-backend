@@ -1,82 +1,91 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { v2 as cloudinary } from 'cloudinary';
 import { v4 as uuidv4 } from 'uuid';
 
 export interface PresignedUrlResponse {
   uploadUrl: string;
   imageUrl: string;
   r2Key: string;
+  timestamp?: number;
+  signature?: string;
+  apiKey?: string;
+  cloudName?: string;
+  publicId?: string;
 }
 
 @Injectable()
 export class R2StorageService {
-  private s3Client: S3Client | null = null;
-  private bucketName: string;
-  private publicUrl: string;
   private readonly logger = new Logger(R2StorageService.name);
+  private cloudName: string;
+  private apiKey: string;
+  private apiSecret: string;
+  private isConfigured = false;
 
   constructor(private readonly config: ConfigService) {
-    const accountId = this.config.get<string>('R2_ACCOUNT_ID');
-    const accessKeyId = this.config.get<string>('R2_ACCESS_KEY_ID');
-    const secretAccessKey = this.config.get<string>('R2_SECRET_ACCESS_KEY');
-    this.bucketName = this.config.get<string>('R2_BUCKET_NAME') || 'patrol-issue-images';
-    this.publicUrl = this.config.get<string>('R2_PUBLIC_URL') || '';
+    this.cloudName = this.config.get<string>('CLOUDINARY_CLOUD_NAME') || '';
+    this.apiKey = this.config.get<string>('CLOUDINARY_API_KEY') || '';
+    this.apiSecret = this.config.get<string>('CLOUDINARY_API_SECRET') || '';
 
-    if (accountId && accessKeyId && secretAccessKey) {
-      this.s3Client = new S3Client({
-        region: 'auto',
-        endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
-        credentials: {
-          accessKeyId,
-          secretAccessKey,
-        },
+    if (this.cloudName && this.apiKey && this.apiSecret) {
+      cloudinary.config({
+        cloud_name: this.cloudName,
+        api_key: this.apiKey,
+        api_secret: this.apiSecret,
+        secure: true,
       });
+      this.isConfigured = true;
     } else {
       this.logger.warn(
-        'Cloudflare R2 credentials not fully configured in environment. Presigned URLs will fallback to mock/local mode.',
+        'Cloudinary credentials not configured in environment. Presigned URLs will fallback to mock mode.',
       );
     }
   }
 
   /**
-   * Generates a signed PUT URL for client-side direct upload to Cloudflare R2
+   * Generates a signed upload signature for direct browser-to-Cloudinary image upload
    */
   async generatePresignedUrl(
     contentType: string,
     fileExtension = 'jpg',
   ): Promise<PresignedUrlResponse> {
-    const ext = fileExtension.replace(/^\./, '') || 'jpg';
-    const r2Key = `issues/${new Date().toISOString().slice(0, 10)}/${uuidv4()}.${ext}`;
+    const timestamp = Math.round(new Date().getTime() / 1000);
+    const folder = 'patrol_issues';
+    const publicId = `${folder}/${uuidv4()}`;
 
-    // If R2 is properly configured
-    if (this.s3Client && this.bucketName) {
-      const command = new PutObjectCommand({
-        Bucket: this.bucketName,
-        Key: r2Key,
-        ContentType: contentType,
-      });
+    if (this.isConfigured) {
+      // Create Cloudinary signed upload parameters
+      const paramsToSign = {
+        timestamp,
+        folder,
+      };
 
-      // Presigned URL valid for 15 minutes (900 seconds)
-      const uploadUrl = await getSignedUrl(this.s3Client, command, { expiresIn: 900 });
-      
-      const baseUrl = this.publicUrl ? this.publicUrl.replace(/\/$/, '') : `https://${this.bucketName}.r2.cloudflarestorage.com`;
-      const imageUrl = `${baseUrl}/${r2Key}`;
+      const signature = cloudinary.utils.api_sign_request(
+        paramsToSign,
+        this.apiSecret,
+      );
+
+      const uploadUrl = `https://api.cloudinary.com/v1_1/${this.cloudName}/image/upload`;
+      const imageUrl = `https://res.cloudinary.com/${this.cloudName}/image/upload/v${timestamp}/${publicId}`;
 
       return {
         uploadUrl,
         imageUrl,
-        r2Key,
+        r2Key: publicId,
+        timestamp,
+        signature,
+        apiKey: this.apiKey,
+        cloudName: this.cloudName,
+        publicId,
       };
     }
 
-    // Fallback/Mock mode if R2 keys are not supplied yet
-    const fallbackBaseUrl = this.publicUrl || 'https://pub-r2.patrol.local';
+    // Fallback/Mock mode if Cloudinary keys are not supplied in .env yet
+    const fallbackBaseUrl = 'https://res.cloudinary.com/demo/image/upload';
     return {
-      uploadUrl: `${fallbackBaseUrl}/mock-upload/${r2Key}?mock=true`,
-      imageUrl: `${fallbackBaseUrl}/${r2Key}`,
-      r2Key,
+      uploadUrl: `${fallbackBaseUrl}/mock-upload/${publicId}?mock=true`,
+      imageUrl: `${fallbackBaseUrl}/${publicId}`,
+      r2Key: publicId,
     };
   }
 }

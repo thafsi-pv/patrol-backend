@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditAction, IncidentSeverity } from '@prisma/client';
@@ -95,11 +96,30 @@ export class PatrolSessionsService {
 
     // GPS distance check
     const distance = haversineDistance(dto.latitude, dto.longitude, checkpoint.latitude, checkpoint.longitude);
-    const isVerified = distance <= checkpoint.radiusMeters;
+    const isWithinRadius = distance <= checkpoint.radiusMeters;
 
+    // ─── OUT OF RANGE: log the attempt then block ──────────────────────────────
+    if (!isWithinRadius) {
+      await this.prisma.auditLog.create({
+        data: {
+          action: AuditAction.OUT_OF_RANGE_ATTEMPT,
+          userId: guardId,
+          sessionId,
+          ipAddress,
+          deviceId: dto.deviceId,
+          details: `OUT-OF-RANGE scan attempt on "${checkpoint.name}" — Guard was ${Math.round(distance)}m away (allowed: ${checkpoint.radiusMeters}m). Scan was BLOCKED.`,
+        },
+      });
+
+      throw new ForbiddenException(
+        `You are ${Math.round(distance)}m away from "${checkpoint.name}". ` +
+        `You must be within ${checkpoint.radiusMeters}m to submit this checkpoint. Move closer and try again.`,
+      );
+    }
+
+    // ─── WITHIN RADIUS: create session log entry ───────────────────────────────
     const severity = (dto.severity as IncidentSeverity) ?? 'NORMAL';
 
-    // Create session log entry
     const sessionLog = await this.prisma.patrolSessionLog.create({
       data: {
         sessionId,
@@ -108,7 +128,7 @@ export class PatrolSessionsService {
         scannedLongitude: dto.longitude,
         gpsAccuracyMeters: dto.accuracy,
         distanceMeters: distance,
-        isVerified,
+        isVerified: true,
         severity,
         remarks: dto.remarks,
         ...(dto.images?.length
@@ -122,7 +142,7 @@ export class PatrolSessionsService {
       include: { checkpoint: true, images: true },
     });
 
-    // Create audit entry
+    // Create audit entry for successful scan
     await this.prisma.auditLog.create({
       data: {
         action: AuditAction.QR_SCANNED,
@@ -130,7 +150,7 @@ export class PatrolSessionsService {
         sessionId,
         ipAddress,
         deviceId: dto.deviceId,
-        details: `Scanned ${checkpoint.name} — Distance: ${Math.round(distance)}m — ${isVerified ? 'VERIFIED' : 'OUT OF RANGE'}`,
+        details: `Scanned "${checkpoint.name}" — Distance: ${Math.round(distance)}m — VERIFIED`,
       },
     });
 
@@ -146,7 +166,7 @@ export class PatrolSessionsService {
 
     return {
       sessionLog,
-      isVerified,
+      isVerified: true,
       distanceMeters: distance,
       completedCount,
       totalCount: session.totalCount,

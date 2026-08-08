@@ -39,6 +39,7 @@ enum AuditAction {
   INCIDENT_CREATED
   PHOTO_UPLOADED
   PATROL_COMPLETED
+  OUT_OF_RANGE_ATTEMPT
 }
 
 model User {

@@ -333,6 +333,10 @@ export class PatrolSessionsService {
           include: { checkpoint: true, images: true },
           orderBy: { scannedAt: 'asc' },
         },
+        auditLogs: {
+          where: { action: 'OUT_OF_RANGE_ATTEMPT' },
+          orderBy: { createdAt: 'desc' },
+        },
       },
     });
     if (!session) throw new NotFoundException('Session not found');

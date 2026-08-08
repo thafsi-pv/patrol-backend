@@ -1,4 +1,5 @@
 import { IsString, IsNotEmpty, IsOptional, IsNumber, IsIn, IsArray } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class StartPatrolDto {
   @IsString()
@@ -72,11 +73,14 @@ export class FilterSessionsDto {
   @IsOptional()
   to?: string;
 
+  @Type(() => Number)
   @IsNumber()
   @IsOptional()
   page?: number;
 
+  @Type(() => Number)
   @IsNumber()
   @IsOptional()
   limit?: number;
 }
+

@@ -98,8 +98,13 @@ export class PatrolSessionsService {
     const distance = haversineDistance(dto.latitude, dto.longitude, checkpoint.latitude, checkpoint.longitude);
     const isWithinRadius = distance <= checkpoint.radiusMeters;
 
+    const formatDistance = (meters: number) =>
+      meters >= 1000 ? `${(meters / 1000).toFixed(2)} km` : `${Math.round(meters)}m`;
+
     // ─── OUT OF RANGE: log the attempt then block ──────────────────────────────
     if (!isWithinRadius) {
+      const distStr = formatDistance(distance);
+      const radiusStr = formatDistance(checkpoint.radiusMeters);
       await this.prisma.auditLog.create({
         data: {
           action: AuditAction.OUT_OF_RANGE_ATTEMPT,
@@ -107,13 +112,13 @@ export class PatrolSessionsService {
           sessionId,
           ipAddress,
           deviceId: dto.deviceId,
-          details: `OUT-OF-RANGE scan attempt on "${checkpoint.name}" — Guard was ${Math.round(distance)}m away (allowed: ${checkpoint.radiusMeters}m). Scan was BLOCKED.`,
+          details: `OUT-OF-RANGE scan attempt on "${checkpoint.name}" — Guard was ${distStr} away (allowed: ${radiusStr}). Scan was BLOCKED.`,
         },
       });
 
       throw new ForbiddenException(
-        `You are ${Math.round(distance)}m away from "${checkpoint.name}". ` +
-        `You must be within ${checkpoint.radiusMeters}m to submit this checkpoint. Move closer and try again.`,
+        `You are ${distStr} away from "${checkpoint.name}". ` +
+        `You must be within ${radiusStr} to submit this checkpoint. Move closer and try again.`,
       );
     }
 

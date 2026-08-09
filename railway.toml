@@ -2,7 +2,7 @@
 builder = "nixpacks"
 
 [build.buildCommand]
-value = "npm ci && npm run build && npx prisma generate"
+value = "npm ci && npx prisma generate"
 
 [deploy]
 startCommand = "npm run start:prod"

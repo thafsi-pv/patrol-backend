@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: patrol-backend
+    env: node
+    region: oregon
+    plan: free
+    buildCommand: npm ci && npx prisma generate
+    startCommand: npm run start:prod
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production

@@ -1,5 +1,5 @@
-# Compiled output
-dist/
+# Compiled output — dist IS committed (pre-built for low-RAM deployment)
+# dist/
 build/
 
 # Node modules

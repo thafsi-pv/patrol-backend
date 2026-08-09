@@ -151,32 +151,34 @@ let PatrolSessionsService = class PatrolSessionsService {
             data: { completedCount, completionRate },
         });
         if (severity === 'ISSUE_FOUND' || severity === 'EMERGENCY') {
-            try {
-                const admins = await this.prisma.user.findMany({
-                    where: { role: 'ADMIN', mobileNumber: { not: null }, whatsappAlertEnabled: true },
-                });
-                if (admins.length > 0) {
-                    const guard = await this.prisma.user.findUnique({ where: { id: guardId } });
-                    const severityEmoji = severity === 'EMERGENCY' ? '🚨 EMERGENCY' : '⚠️ ISSUE FOUND';
-                    const msg = `*${severityEmoji} ALERT*\n\n` +
-                        `*Guard:* ${guard?.name || 'Unknown'}\n` +
-                        `*Route:* ${session.route?.name || 'Unknown'}\n` +
-                        `*Checkpoint:* ${checkpoint.name}\n` +
-                        `*Status:* ${severity.replace('_', ' ')}\n` +
-                        `*Remarks:* ${dto.remarks || 'None'}\n` +
-                        `*Time:* ${new Date().toLocaleString()}\n` +
-                        `*Distance:* ${Math.round(distance)}m`;
-                    const imageUrls = dto.images?.map(img => img.imageUrl) || [];
-                    for (const admin of admins) {
-                        if (admin.mobileNumber) {
-                            await this.whatsappService.sendMessage(admin.mobileNumber, msg, imageUrls);
+            setImmediate(async () => {
+                try {
+                    const admins = await this.prisma.user.findMany({
+                        where: { role: 'ADMIN', mobileNumber: { not: null }, whatsappAlertEnabled: true },
+                    });
+                    if (admins.length > 0) {
+                        const guard = await this.prisma.user.findUnique({ where: { id: guardId } });
+                        const severityEmoji = severity === 'EMERGENCY' ? '🚨 EMERGENCY' : '⚠️ ISSUE FOUND';
+                        const msg = `*${severityEmoji} ALERT*\n\n` +
+                            `*Guard:* ${guard?.name || 'Unknown'}\n` +
+                            `*Route:* ${session.route?.name || 'Unknown'}\n` +
+                            `*Checkpoint:* ${checkpoint.name}\n` +
+                            `*Status:* ${severity.replace('_', ' ')}\n` +
+                            `*Remarks:* ${dto.remarks || 'None'}\n` +
+                            `*Time:* ${new Date().toLocaleString()}\n` +
+                            `*Distance:* ${Math.round(distance)}m`;
+                        const imageUrls = dto.images?.map(img => img.imageUrl) || [];
+                        for (const admin of admins) {
+                            if (admin.mobileNumber) {
+                                await this.whatsappService.sendMessage(admin.mobileNumber, msg, imageUrls);
+                            }
                         }
                     }
                 }
-            }
-            catch (waErr) {
-                console.error('Error sending WhatsApp notifications:', waErr);
-            }
+                catch (waErr) {
+                    console.error('Error sending WhatsApp notifications in background:', waErr);
+                }
+            });
         }
         return {
             sessionLog,

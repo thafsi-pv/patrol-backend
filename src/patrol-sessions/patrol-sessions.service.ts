@@ -173,38 +173,39 @@ export class PatrolSessionsService {
       data: { completedCount, completionRate },
     });
 
-    // Send WhatsApp alerts to admin if severity is ISSUE_FOUND or EMERGENCY
+    // Send WhatsApp alerts to admin asynchronously in background if severity is ISSUE_FOUND or EMERGENCY
     if (severity === 'ISSUE_FOUND' || severity === 'EMERGENCY') {
-      try {
-        const admins = await this.prisma.user.findMany({
-          where: { role: 'ADMIN', mobileNumber: { not: null }, whatsappAlertEnabled: true },
-        });
+      setImmediate(async () => {
+        try {
+          const admins = await this.prisma.user.findMany({
+            where: { role: 'ADMIN', mobileNumber: { not: null }, whatsappAlertEnabled: true },
+          });
 
-        if (admins.length > 0) {
-          const guard = await this.prisma.user.findUnique({ where: { id: guardId } });
-          const severityEmoji = severity === 'EMERGENCY' ? '🚨 EMERGENCY' : '⚠️ ISSUE FOUND';
-          
-          const msg = `*${severityEmoji} ALERT*\n\n` +
-            `*Guard:* ${guard?.name || 'Unknown'}\n` +
-            `*Route:* ${session.route?.name || 'Unknown'}\n` +
-            `*Checkpoint:* ${checkpoint.name}\n` +
-            `*Status:* ${severity.replace('_', ' ')}\n` +
-            `*Remarks:* ${dto.remarks || 'None'}\n` +
-            `*Time:* ${new Date().toLocaleString()}\n` +
-            `*Distance:* ${Math.round(distance)}m`;
+          if (admins.length > 0) {
+            const guard = await this.prisma.user.findUnique({ where: { id: guardId } });
+            const severityEmoji = severity === 'EMERGENCY' ? '🚨 EMERGENCY' : '⚠️ ISSUE FOUND';
+            
+            const msg = `*${severityEmoji} ALERT*\n\n` +
+              `*Guard:* ${guard?.name || 'Unknown'}\n` +
+              `*Route:* ${session.route?.name || 'Unknown'}\n` +
+              `*Checkpoint:* ${checkpoint.name}\n` +
+              `*Status:* ${severity.replace('_', ' ')}\n` +
+              `*Remarks:* ${dto.remarks || 'None'}\n` +
+              `*Time:* ${new Date().toLocaleString()}\n` +
+              `*Distance:* ${Math.round(distance)}m`;
 
-          const imageUrls = dto.images?.map(img => img.imageUrl) || [];
+            const imageUrls = dto.images?.map(img => img.imageUrl) || [];
 
-          for (const admin of admins) {
-            if (admin.mobileNumber) {
-              await this.whatsappService.sendMessage(admin.mobileNumber, msg, imageUrls);
+            for (const admin of admins) {
+              if (admin.mobileNumber) {
+                await this.whatsappService.sendMessage(admin.mobileNumber, msg, imageUrls);
+              }
             }
           }
+        } catch (waErr) {
+          console.error('Error sending WhatsApp notifications in background:', waErr);
         }
-      } catch (waErr) {
-        // Log WhatsApp sending error but do not fail the request
-        console.error('Error sending WhatsApp notifications:', waErr);
-      }
+      });
     }
 
     return {

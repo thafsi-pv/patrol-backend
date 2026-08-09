@@ -8,10 +8,14 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuditAction, IncidentSeverity } from '@prisma/client';
 import { StartPatrolDto, ScanCheckpointDto, FilterSessionsDto } from './dto/patrol-session.dto';
 import { haversineDistance } from '../common/geo.util';
+import { WhatsAppService } from '../whatsapp/whatsapp.service';
 
 @Injectable()
 export class PatrolSessionsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly whatsappService: WhatsAppService,
+  ) {}
 
   // ─── Start a new patrol session ───────────────────────────────────────────
 
@@ -168,6 +172,38 @@ export class PatrolSessionsService {
       where: { id: sessionId },
       data: { completedCount, completionRate },
     });
+
+    // Send WhatsApp alerts to admin if severity is ISSUE_FOUND or EMERGENCY
+    if (severity === 'ISSUE_FOUND' || severity === 'EMERGENCY') {
+      try {
+        const admins = await this.prisma.user.findMany({
+          where: { role: 'ADMIN', mobileNumber: { not: null } },
+        });
+
+        if (admins.length > 0) {
+          const guard = await this.prisma.user.findUnique({ where: { id: guardId } });
+          const severityEmoji = severity === 'EMERGENCY' ? '🚨 EMERGENCY' : '⚠️ ISSUE FOUND';
+          
+          const msg = `*${severityEmoji} ALERT*\n\n` +
+            `*Guard:* ${guard?.name || 'Unknown'}\n` +
+            `*Route:* ${session.route?.name || 'Unknown'}\n` +
+            `*Checkpoint:* ${checkpoint.name}\n` +
+            `*Status:* ${severity.replace('_', ' ')}\n` +
+            `*Remarks:* ${dto.remarks || 'None'}\n` +
+            `*Time:* ${new Date().toLocaleString()}\n` +
+            `*Distance:* ${Math.round(distance)}m`;
+
+          for (const admin of admins) {
+            if (admin.mobileNumber) {
+              await this.whatsappService.sendMessage(admin.mobileNumber, msg);
+            }
+          }
+        }
+      } catch (waErr) {
+        // Log WhatsApp sending error but do not fail the request
+        console.error('Error sending WhatsApp notifications:', waErr);
+      }
+    }
 
     return {
       sessionLog,

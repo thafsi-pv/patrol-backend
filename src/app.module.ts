@@ -11,6 +11,7 @@ import { UsersModule } from './users/users.module';
 import { IncidentsModule } from './incidents/incidents.module';
 import { RoutesModule } from './routes/routes.module';
 import { PatrolSessionsModule } from './patrol-sessions/patrol-sessions.module';
+import { WhatsAppModule } from './whatsapp/whatsapp.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { PatrolSessionsModule } from './patrol-sessions/patrol-sessions.module';
     IncidentsModule,
     RoutesModule,
     PatrolSessionsModule,
+    WhatsAppModule,
   ],
   controllers: [AppController],
   providers: [

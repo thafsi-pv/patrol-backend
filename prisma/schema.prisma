@@ -49,6 +49,7 @@ model User {
   name          String
   role          Role        @default(GUARD)
   deviceId      String?     // optional device-binding fingerprint, set on first login
+  mobileNumber  String?     // Mobile number for WhatsApp reports
   createdAt     DateTime    @default(now())
 
   checkpointsCreated Checkpoint[]    @relation("CheckpointCreatedBy")

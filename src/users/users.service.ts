@@ -22,6 +22,7 @@ export class UsersService {
         name: dto.name,
         passwordHash,
         role: dto.role,
+        mobileNumber: dto.mobileNumber,
       },
       select: {
         id: true,
@@ -29,6 +30,7 @@ export class UsersService {
         name: true,
         role: true,
         deviceId: true,
+        mobileNumber: true,
         createdAt: true,
       },
     });
@@ -43,6 +45,7 @@ export class UsersService {
         name: true,
         role: true,
         deviceId: true,
+        mobileNumber: true,
         createdAt: true,
       },
       orderBy: { createdAt: 'desc' },

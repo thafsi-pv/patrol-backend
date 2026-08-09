@@ -16,6 +16,7 @@ export declare class AuthService {
             name: string;
             role: import("@prisma/client").$Enums.Role;
             mobileNumber: string | null;
+            whatsappAlertEnabled: boolean;
             createdAt: Date;
         };
     }>;

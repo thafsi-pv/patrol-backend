@@ -18,6 +18,7 @@ class CreateUserDto {
     password;
     role;
     mobileNumber;
+    whatsappAlertEnabled;
 }
 exports.CreateUserDto = CreateUserDto;
 __decorate([
@@ -43,4 +44,9 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], CreateUserDto.prototype, "mobileNumber", void 0);
+__decorate([
+    (0, class_validator_1.IsBoolean)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Boolean)
+], CreateUserDto.prototype, "whatsappAlertEnabled", void 0);
 //# sourceMappingURL=create-user.dto.js.map

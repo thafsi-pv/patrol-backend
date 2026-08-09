@@ -135,7 +135,7 @@ let WhatsAppService = WhatsAppService_1 = class WhatsAppService {
         }
         await this.connectToWhatsApp();
     }
-    async sendMessage(to, text) {
+    async sendMessage(to, text, imageUrls) {
         if (!this.sock || !this.isConnected) {
             this.logger.warn(`Cannot send WhatsApp message to ${to}. WhatsApp bot is not connected.`);
             return;
@@ -146,7 +146,21 @@ let WhatsAppService = WhatsAppService_1 = class WhatsAppService {
                 cleanNum = `${cleanNum}@s.whatsapp.net`;
             }
             await this.sock.sendMessage(cleanNum, { text });
-            this.logger.log(`WhatsApp message sent to ${cleanNum}`);
+            this.logger.log(`WhatsApp text message sent to ${cleanNum}`);
+            if (imageUrls && imageUrls.length > 0) {
+                for (const url of imageUrls) {
+                    try {
+                        await this.sock.sendMessage(cleanNum, {
+                            image: { url },
+                            caption: 'Incident Evidence Photo',
+                        });
+                        this.logger.log(`WhatsApp image sent to ${cleanNum}: ${url}`);
+                    }
+                    catch (imgErr) {
+                        this.logger.error(`Failed to send WhatsApp image attachment to ${to}: ${url}`, imgErr);
+                    }
+                }
+            }
         }
         catch (err) {
             this.logger.error(`Failed to send WhatsApp message to ${to}`, err);

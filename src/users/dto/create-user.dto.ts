@@ -1,4 +1,4 @@
-import { IsEmail, IsEnum, IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
+import { IsEmail, IsEnum, IsNotEmpty, IsOptional, IsString, IsBoolean, MinLength } from 'class-validator';
 import { Role } from '@prisma/client';
 
 export class CreateUserDto {
@@ -19,4 +19,8 @@ export class CreateUserDto {
   @IsString()
   @IsOptional()
   mobileNumber?: string;
+
+  @IsBoolean()
+  @IsOptional()
+  whatsappAlertEnabled?: boolean;
 }

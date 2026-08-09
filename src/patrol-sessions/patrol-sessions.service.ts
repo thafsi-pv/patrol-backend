@@ -177,7 +177,7 @@ export class PatrolSessionsService {
     if (severity === 'ISSUE_FOUND' || severity === 'EMERGENCY') {
       try {
         const admins = await this.prisma.user.findMany({
-          where: { role: 'ADMIN', mobileNumber: { not: null } },
+          where: { role: 'ADMIN', mobileNumber: { not: null }, whatsappAlertEnabled: true },
         });
 
         if (admins.length > 0) {
@@ -193,9 +193,11 @@ export class PatrolSessionsService {
             `*Time:* ${new Date().toLocaleString()}\n` +
             `*Distance:* ${Math.round(distance)}m`;
 
+          const imageUrls = dto.images?.map(img => img.imageUrl) || [];
+
           for (const admin of admins) {
             if (admin.mobileNumber) {
-              await this.whatsappService.sendMessage(admin.mobileNumber, msg);
+              await this.whatsappService.sendMessage(admin.mobileNumber, msg, imageUrls);
             }
           }
         }

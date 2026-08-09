@@ -107,7 +107,7 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
     await this.connectToWhatsApp();
   }
 
-  async sendMessage(to: string, text: string): Promise<void> {
+  async sendMessage(to: string, text: string, imageUrls?: string[]): Promise<void> {
     if (!this.sock || !this.isConnected) {
       this.logger.warn(`Cannot send WhatsApp message to ${to}. WhatsApp bot is not connected.`);
       return;
@@ -119,8 +119,24 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
         cleanNum = `${cleanNum}@s.whatsapp.net`;
       }
 
+      // Send the text message
       await this.sock.sendMessage(cleanNum, { text });
-      this.logger.log(`WhatsApp message sent to ${cleanNum}`);
+      this.logger.log(`WhatsApp text message sent to ${cleanNum}`);
+
+      // Send attached images if any
+      if (imageUrls && imageUrls.length > 0) {
+        for (const url of imageUrls) {
+          try {
+            await this.sock.sendMessage(cleanNum, {
+              image: { url },
+              caption: 'Incident Evidence Photo',
+            });
+            this.logger.log(`WhatsApp image sent to ${cleanNum}: ${url}`);
+          } catch (imgErr) {
+            this.logger.error(`Failed to send WhatsApp image attachment to ${to}: ${url}`, imgErr);
+          }
+        }
+      }
     } catch (err) {
       this.logger.error(`Failed to send WhatsApp message to ${to}`, err);
     }

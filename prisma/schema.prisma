@@ -43,14 +43,15 @@ enum AuditAction {
 }
 
 model User {
-  id            String      @id @default(uuid())
-  email         String      @unique
-  passwordHash  String
-  name          String
-  role          Role        @default(GUARD)
-  deviceId      String?     // optional device-binding fingerprint, set on first login
-  mobileNumber  String?     // Mobile number for WhatsApp reports
-  createdAt     DateTime    @default(now())
+  id                  String      @id @default(uuid())
+  email               String      @unique
+  passwordHash        String
+  name                String
+  role                Role        @default(GUARD)
+  deviceId            String?     // optional device-binding fingerprint, set on first login
+  mobileNumber        String?     // Mobile number for WhatsApp reports
+  whatsappAlertEnabled Boolean     @default(true) // Configurable flag to enable/disable WhatsApp notifications
+  createdAt           DateTime    @default(now())
 
   checkpointsCreated Checkpoint[]    @relation("CheckpointCreatedBy")
   patrolLogs         PatrolLog[]

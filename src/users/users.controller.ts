@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, Patch, Param, UseGuards } from '@nestjs/common';
 import { Role } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../auth/roles.decorator';
@@ -20,5 +20,10 @@ export class UsersController {
   @Get()
   findAll() {
     return this.usersService.findAll();
+  }
+
+  @Patch(':id/whatsapp-alert')
+  toggleWhatsappAlert(@Param('id') id: string, @Body('enabled') enabled: boolean) {
+    return this.usersService.toggleWhatsappAlert(id, enabled);
   }
 }

@@ -23,6 +23,7 @@ export class UsersService {
         passwordHash,
         role: dto.role,
         mobileNumber: dto.mobileNumber,
+        whatsappAlertEnabled: dto.whatsappAlertEnabled !== undefined ? dto.whatsappAlertEnabled : true,
       },
       select: {
         id: true,
@@ -31,6 +32,7 @@ export class UsersService {
         role: true,
         deviceId: true,
         mobileNumber: true,
+        whatsappAlertEnabled: true,
         createdAt: true,
       },
     });
@@ -46,9 +48,22 @@ export class UsersService {
         role: true,
         deviceId: true,
         mobileNumber: true,
+        whatsappAlertEnabled: true,
         createdAt: true,
       },
       orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async toggleWhatsappAlert(userId: string, enabled: boolean) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { whatsappAlertEnabled: enabled },
+      select: {
+        id: true,
+        email: true,
+        whatsappAlertEnabled: true,
+      },
     });
   }
 }

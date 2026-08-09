@@ -10,6 +10,7 @@ export declare class UsersController {
         role: import("@prisma/client").$Enums.Role;
         deviceId: string | null;
         mobileNumber: string | null;
+        whatsappAlertEnabled: boolean;
         createdAt: Date;
     }>;
     findAll(): Promise<{
@@ -19,6 +20,12 @@ export declare class UsersController {
         role: import("@prisma/client").$Enums.Role;
         deviceId: string | null;
         mobileNumber: string | null;
+        whatsappAlertEnabled: boolean;
         createdAt: Date;
     }[]>;
+    toggleWhatsappAlert(id: string, enabled: boolean): Promise<{
+        id: string;
+        email: string;
+        whatsappAlertEnabled: boolean;
+    }>;
 }

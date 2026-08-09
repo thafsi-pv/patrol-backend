@@ -1,4 +1,5 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Role } from '@prisma/client';
 import { RoutesService } from './routes.service';
 import { CreateRouteDto, UpdateRouteDto } from './dto/route.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -11,31 +12,31 @@ export class RoutesController {
   constructor(private readonly routesService: RoutesService) {}
 
   @Post()
-  @Roles('ADMIN')
+  @Roles(Role.ADMIN)
   create(@Body() dto: CreateRouteDto) {
     return this.routesService.create(dto);
   }
 
   @Get()
-  @Roles('ADMIN', 'GUARD')
+  @Roles(Role.ADMIN, Role.GUARD)
   findAll() {
     return this.routesService.findAll();
   }
 
   @Get(':id')
-  @Roles('ADMIN', 'GUARD')
+  @Roles(Role.ADMIN, Role.GUARD)
   findOne(@Param('id') id: string) {
     return this.routesService.findOne(id);
   }
 
   @Patch(':id')
-  @Roles('ADMIN')
+  @Roles(Role.ADMIN)
   update(@Param('id') id: string, @Body() dto: UpdateRouteDto) {
     return this.routesService.update(id, dto);
   }
 
   @Delete(':id')
-  @Roles('ADMIN')
+  @Roles(Role.ADMIN)
   deactivate(@Param('id') id: string) {
     return this.routesService.deactivate(id);
   }

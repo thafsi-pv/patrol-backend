@@ -5,11 +5,17 @@ export declare class WhatsAppController {
     getStatus(): {
         connected: boolean;
         registered: boolean;
+        failedPermanently: boolean;
+        phoneNumber: string | null;
+        accountName: string | null;
     };
     getPairingCode(phoneNumber: string): Promise<{
         code: string;
     }>;
     logout(): Promise<{
+        success: boolean;
+    }>;
+    connect(): Promise<{
         success: boolean;
     }>;
 }

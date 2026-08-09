@@ -35,6 +35,10 @@ let WhatsAppController = class WhatsAppController {
         await this.whatsappService.logout();
         return { success: true };
     }
+    async connect() {
+        await this.whatsappService.manualReconnect();
+        return { success: true };
+    }
 };
 exports.WhatsAppController = WhatsAppController;
 __decorate([
@@ -59,6 +63,13 @@ __decorate([
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", Promise)
 ], WhatsAppController.prototype, "logout", null);
+__decorate([
+    (0, common_1.Post)('connect'),
+    (0, roles_decorator_1.Roles)(client_1.Role.ADMIN),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], WhatsAppController.prototype, "connect", null);
 exports.WhatsAppController = WhatsAppController = __decorate([
     (0, common_1.Controller)('whatsapp'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),

@@ -29,4 +29,11 @@ export class WhatsAppController {
     await this.whatsappService.logout();
     return { success: true };
   }
+
+  @Post('connect')
+  @Roles(Role.ADMIN)
+  async connect() {
+    await this.whatsappService.manualReconnect();
+    return { success: true };
+  }
 }

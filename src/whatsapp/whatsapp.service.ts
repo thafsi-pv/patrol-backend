@@ -14,8 +14,11 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(WhatsAppService.name);
   private sock: WASocket | null = null;
   private isConnected = false;
+  private failedPermanently = false;
 
   constructor(private readonly config: ConfigService) {}
+
+  private retryCount = 0;
 
   async onModuleInit() {
     await this.connectToWhatsApp();
@@ -38,7 +41,7 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
 
       this.sock.ev.on('creds.update', saveCreds);
 
-      this.sock.ev.on('connection.update', (update) => {
+      this.sock.ev.on('connection.update', async (update) => {
         const { connection, lastDisconnect, qr } = update;
 
         if (qr) {
@@ -48,16 +51,28 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
 
         if (connection === 'close') {
           this.isConnected = false;
-          const shouldReconnect =
-            (lastDisconnect?.error as Boom)?.output?.statusCode !== DisconnectReason.loggedOut;
+          const statusCode = (lastDisconnect?.error as Boom)?.output?.statusCode;
+          const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
+          
           this.logger.warn(
-            `WhatsApp connection closed due to ${lastDisconnect?.error}, reconnecting: ${shouldReconnect}`,
+            `WhatsApp connection closed (Status: ${statusCode}). Reconnecting: ${shouldReconnect}`,
           );
+
           if (shouldReconnect) {
-            this.connectToWhatsApp();
+            this.retryCount++;
+            if (this.retryCount > 3) {
+              this.logger.error('WhatsApp failed to connect after 3 retries. Wiping session — manual reconnect required.');
+              this.retryCount = 0;
+              this.failedPermanently = true;
+              await this.logout(true); // wipe session but skip auto-reconnect
+            } else {
+              this.logger.log(`WhatsApp reconnection attempt ${this.retryCount}/3...`);
+              this.connectToWhatsApp();
+            }
           }
         } else if (connection === 'open') {
           this.isConnected = true;
+          this.retryCount = 0;
           this.logger.log('WhatsApp connection successfully opened!');
         }
       });
@@ -79,7 +94,7 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
     return code;
   }
 
-  async logout(): Promise<void> {
+  async logout(skipReconnect = false): Promise<void> {
     if (this.sock) {
       try {
         await this.sock.logout();
@@ -103,7 +118,16 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
         this.logger.error('Failed to delete session state folder', err);
       }
     }
-    // Re-initialize socket in empty state
+    if (!skipReconnect) {
+      this.failedPermanently = false;
+      await this.connectToWhatsApp();
+    }
+  }
+
+  /** Called from the admin frontend "Reconnect" button after permanent failure. */
+  async manualReconnect(): Promise<void> {
+    this.failedPermanently = false;
+    this.retryCount = 0;
     await this.connectToWhatsApp();
   }
 
@@ -143,9 +167,18 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
   }
 
   getConnectionStatus() {
+    const me = this.sock?.authState?.creds?.me;
+    // me.id is like "919876543210:0@s.whatsapp.net" — strip suffix to get readable number
+    const rawId = me?.id ?? '';
+    const phoneNumber = rawId.split(':')[0].split('@')[0] || null;
+    const accountName = me?.name ?? null;
+
     return {
       connected: this.isConnected,
       registered: !!this.sock?.authState?.creds?.registered,
+      failedPermanently: this.failedPermanently,
+      phoneNumber,
+      accountName,
     };
   }
 }

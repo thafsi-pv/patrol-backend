@@ -54,9 +54,11 @@ let WhatsAppService = WhatsAppService_1 = class WhatsAppService {
     logger = new common_1.Logger(WhatsAppService_1.name);
     sock = null;
     isConnected = false;
+    failedPermanently = false;
     constructor(config) {
         this.config = config;
     }
+    retryCount = 0;
     async onModuleInit() {
         await this.connectToWhatsApp();
     }
@@ -73,7 +75,7 @@ let WhatsAppService = WhatsAppService_1 = class WhatsAppService {
                 defaultQueryTimeoutMs: undefined,
             });
             this.sock.ev.on('creds.update', saveCreds);
-            this.sock.ev.on('connection.update', (update) => {
+            this.sock.ev.on('connection.update', async (update) => {
                 const { connection, lastDisconnect, qr } = update;
                 if (qr) {
                     this.logger.log('Scan this WhatsApp QR code to link device:');
@@ -81,14 +83,26 @@ let WhatsAppService = WhatsAppService_1 = class WhatsAppService {
                 }
                 if (connection === 'close') {
                     this.isConnected = false;
-                    const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== baileys_1.DisconnectReason.loggedOut;
-                    this.logger.warn(`WhatsApp connection closed due to ${lastDisconnect?.error}, reconnecting: ${shouldReconnect}`);
+                    const statusCode = lastDisconnect?.error?.output?.statusCode;
+                    const shouldReconnect = statusCode !== baileys_1.DisconnectReason.loggedOut;
+                    this.logger.warn(`WhatsApp connection closed (Status: ${statusCode}). Reconnecting: ${shouldReconnect}`);
                     if (shouldReconnect) {
-                        this.connectToWhatsApp();
+                        this.retryCount++;
+                        if (this.retryCount > 3) {
+                            this.logger.error('WhatsApp failed to connect after 3 retries. Wiping session — manual reconnect required.');
+                            this.retryCount = 0;
+                            this.failedPermanently = true;
+                            await this.logout(true);
+                        }
+                        else {
+                            this.logger.log(`WhatsApp reconnection attempt ${this.retryCount}/3...`);
+                            this.connectToWhatsApp();
+                        }
                     }
                 }
                 else if (connection === 'open') {
                     this.isConnected = true;
+                    this.retryCount = 0;
                     this.logger.log('WhatsApp connection successfully opened!');
                 }
             });
@@ -109,7 +123,7 @@ let WhatsAppService = WhatsAppService_1 = class WhatsAppService {
         const code = await this.sock.requestPairingCode(cleanNum);
         return code;
     }
-    async logout() {
+    async logout(skipReconnect = false) {
         if (this.sock) {
             try {
                 await this.sock.logout();
@@ -133,6 +147,14 @@ let WhatsAppService = WhatsAppService_1 = class WhatsAppService {
                 this.logger.error('Failed to delete session state folder', err);
             }
         }
+        if (!skipReconnect) {
+            this.failedPermanently = false;
+            await this.connectToWhatsApp();
+        }
+    }
+    async manualReconnect() {
+        this.failedPermanently = false;
+        this.retryCount = 0;
         await this.connectToWhatsApp();
     }
     async sendMessage(to, text, imageUrls) {
@@ -167,9 +189,16 @@ let WhatsAppService = WhatsAppService_1 = class WhatsAppService {
         }
     }
     getConnectionStatus() {
+        const me = this.sock?.authState?.creds?.me;
+        const rawId = me?.id ?? '';
+        const phoneNumber = rawId.split(':')[0].split('@')[0] || null;
+        const accountName = me?.name ?? null;
         return {
             connected: this.isConnected,
             registered: !!this.sock?.authState?.creds?.registered,
+            failedPermanently: this.failedPermanently,
+            phoneNumber,
+            accountName,
         };
     }
 };

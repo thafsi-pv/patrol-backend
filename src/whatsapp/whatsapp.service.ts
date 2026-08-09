@@ -66,6 +66,47 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  async getPairingCode(phoneNumber: string): Promise<string> {
+    if (!this.sock) {
+      throw new Error('WhatsApp socket is not initialized');
+    }
+    const cleanNum = phoneNumber.replace(/\D/g, '');
+    if (!cleanNum) {
+      throw new Error('Phone number must contain digits only');
+    }
+    this.logger.log(`Requesting WhatsApp pairing code for number: ${cleanNum}`);
+    const code = await this.sock.requestPairingCode(cleanNum);
+    return code;
+  }
+
+  async logout(): Promise<void> {
+    if (this.sock) {
+      try {
+        await this.sock.logout();
+      } catch (err) {
+        this.logger.error('Error during Baileys socket logout', err);
+      }
+      this.sock.end(undefined);
+      this.sock = null;
+    }
+    this.isConnected = false;
+
+    // Delete session files
+    const fs = require('fs');
+    const sessionDir = this.config.get<string>('WA_SESSION_DIR') || './wa-session';
+    const resolvedPath = path.resolve(sessionDir);
+    if (fs.existsSync(resolvedPath)) {
+      try {
+        fs.rmSync(resolvedPath, { recursive: true, force: true });
+        this.logger.log('WhatsApp session state folder cleared.');
+      } catch (err) {
+        this.logger.error('Failed to delete session state folder', err);
+      }
+    }
+    // Re-initialize socket in empty state
+    await this.connectToWhatsApp();
+  }
+
   async sendMessage(to: string, text: string): Promise<void> {
     if (!this.sock || !this.isConnected) {
       this.logger.warn(`Cannot send WhatsApp message to ${to}. WhatsApp bot is not connected.`);
@@ -85,7 +126,10 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  getConnectionStatus(): boolean {
-    return this.isConnected;
+  getConnectionStatus() {
+    return {
+      connected: this.isConnected,
+      registered: !!this.sock?.authState?.creds?.registered,
+    };
   }
 }

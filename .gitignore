@@ -20,6 +20,9 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# WhatsApp session data — runtime-generated, never commit
+wa-session/
+
 # OS
 .DS_Store
 Thumbs.db

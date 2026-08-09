@@ -185,21 +185,24 @@ let WhatsAppService = WhatsAppService_1 = class WhatsAppService {
             if (!cleanNum.endsWith('@s.whatsapp.net')) {
                 cleanNum = `${cleanNum}@s.whatsapp.net`;
             }
-            await this.sock.sendMessage(cleanNum, { text });
-            this.logger.log(`WhatsApp text message sent to ${cleanNum}`);
             if (imageUrls && imageUrls.length > 0) {
-                for (const url of imageUrls) {
+                for (let i = 0; i < imageUrls.length; i++) {
+                    const url = imageUrls[i];
                     try {
                         await this.sock.sendMessage(cleanNum, {
                             image: { url },
-                            caption: 'Incident Evidence Photo',
+                            caption: i === 0 ? text : `(${i + 1}/${imageUrls.length})`,
                         });
                         this.logger.log(`WhatsApp image sent to ${cleanNum}: ${url}`);
                     }
                     catch (imgErr) {
-                        this.logger.error(`Failed to send WhatsApp image attachment to ${to}: ${url}`, imgErr);
+                        this.logger.error(`Failed to send WhatsApp image to ${to}: ${url}`, imgErr);
                     }
                 }
+            }
+            else {
+                await this.sock.sendMessage(cleanNum, { text });
+                this.logger.log(`WhatsApp text message sent to ${cleanNum}`);
             }
         }
         catch (err) {

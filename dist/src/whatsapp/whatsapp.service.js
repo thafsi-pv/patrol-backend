@@ -84,25 +84,43 @@ let WhatsAppService = WhatsAppService_1 = class WhatsAppService {
                 if (connection === 'close') {
                     this.isConnected = false;
                     const statusCode = lastDisconnect?.error?.output?.statusCode;
-                    const shouldReconnect = statusCode !== baileys_1.DisconnectReason.loggedOut;
-                    this.logger.warn(`WhatsApp connection closed (Status: ${statusCode}). Reconnecting: ${shouldReconnect}`);
-                    if (shouldReconnect) {
-                        this.retryCount++;
-                        if (this.retryCount > 3) {
-                            this.logger.error('WhatsApp failed to connect after 3 retries. Wiping session — manual reconnect required.');
-                            this.retryCount = 0;
-                            this.failedPermanently = true;
-                            await this.logout(true);
+                    this.logger.warn(`WhatsApp connection closed (Status: ${statusCode}).`);
+                    if (statusCode === baileys_1.DisconnectReason.loggedOut ||
+                        statusCode === baileys_1.DisconnectReason.connectionReplaced) {
+                        this.logger.error(statusCode === baileys_1.DisconnectReason.connectionReplaced
+                            ? 'WhatsApp session was replaced by another device. Stopping — please reconnect from the admin panel.'
+                            : 'WhatsApp was logged out. Wiping session.');
+                        this.retryCount = 0;
+                        this.failedPermanently = true;
+                        if (this.sock) {
+                            this.sock.end(undefined);
+                            this.sock = null;
                         }
-                        else {
-                            this.logger.log(`WhatsApp reconnection attempt ${this.retryCount}/3...`);
-                            this.connectToWhatsApp();
+                        const fs = require('fs');
+                        const sessionDir = this.config.get('WA_SESSION_DIR') || './wa-session';
+                        const resolvedPath = require('path').resolve(sessionDir);
+                        if (fs.existsSync(resolvedPath)) {
+                            fs.rmSync(resolvedPath, { recursive: true, force: true });
+                            this.logger.log('WhatsApp session folder cleared.');
                         }
+                        return;
+                    }
+                    this.retryCount++;
+                    if (this.retryCount > 3) {
+                        this.logger.error('WhatsApp failed to connect after 3 retries. Manual reconnect required.');
+                        this.retryCount = 0;
+                        this.failedPermanently = true;
+                        await this.logout(true);
+                    }
+                    else {
+                        this.logger.log(`WhatsApp reconnection attempt ${this.retryCount}/3...`);
+                        this.connectToWhatsApp();
                     }
                 }
                 else if (connection === 'open') {
                     this.isConnected = true;
                     this.retryCount = 0;
+                    this.failedPermanently = false;
                     this.logger.log('WhatsApp connection successfully opened!');
                 }
             });

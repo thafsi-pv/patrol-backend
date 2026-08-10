@@ -142,8 +142,31 @@ export declare class PatrolSessionsService {
             isVerified: boolean;
         })[];
         route: {
+            checkpoints: ({
+                checkpoint: {
+                    id: string;
+                    name: string;
+                    createdAt: Date;
+                    qrCode: string;
+                    description: string | null;
+                    latitude: number;
+                    longitude: number;
+                    radiusMeters: number;
+                    active: boolean;
+                    createdById: string;
+                };
+            } & {
+                id: string;
+                orderIndex: number;
+                checkpointId: string;
+                routeId: string;
+            })[];
+        } & {
             id: string;
             name: string;
+            createdAt: Date;
+            description: string | null;
+            active: boolean;
         };
         guard: {
             id: string;

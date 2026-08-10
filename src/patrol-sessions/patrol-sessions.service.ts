@@ -68,6 +68,36 @@ export class PatrolSessionsService {
       },
     });
 
+    // Notify admins via WhatsApp asynchronously in background
+    setImmediate(async () => {
+      try {
+        const admins = await this.prisma.user.findMany({
+          where: { role: 'ADMIN', mobileNumber: { not: null }, whatsappAlertEnabled: true },
+        });
+        if (admins.length > 0) {
+          const startTimeStr = new Date(session.startTime).toLocaleString('en-US', {
+            dateStyle: 'medium',
+            timeStyle: 'medium',
+          });
+          const msg =
+            `🚀 *PATROL STARTED*\n\n` +
+            `*Guard:* ${session.guard?.name || 'Unknown'}\n` +
+            `*Route:* ${session.route?.name || 'Unknown'}\n` +
+            `*Start Time:* ${startTimeStr}\n` +
+            `*Shift:* ${session.shift || 'N/A'}\n` +
+            `*Total Checkpoints:* ${totalCount}`;
+
+          for (const admin of admins) {
+            if (admin.mobileNumber) {
+              await this.whatsappService.sendMessage(admin.mobileNumber, msg);
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Error sending WhatsApp patrol start notification:', err);
+      }
+    });
+
     return session;
   }
 
@@ -250,13 +280,112 @@ export class PatrolSessionsService {
         },
       },
       include: {
-        route: { select: { id: true, name: true } },
+        route: {
+          include: {
+            checkpoints: {
+              include: { checkpoint: true },
+              orderBy: { orderIndex: 'asc' },
+            },
+          },
+        },
         guard: { select: { id: true, name: true, email: true } },
         sessionLogs: {
           include: { checkpoint: true, images: true },
           orderBy: { scannedAt: 'asc' },
         },
       },
+    });
+
+    // Notify admins via WhatsApp asynchronously in background with complete summary
+    setImmediate(async () => {
+      try {
+        const admins = await this.prisma.user.findMany({
+          where: { role: 'ADMIN', mobileNumber: { not: null }, whatsappAlertEnabled: true },
+        });
+
+        if (admins.length > 0) {
+          const startTimeStr = new Date(updated.startTime).toLocaleString('en-US', {
+            dateStyle: 'medium',
+            timeStyle: 'medium',
+          });
+          const endTimeStr = updated.endTime
+            ? new Date(updated.endTime).toLocaleString('en-US', {
+                dateStyle: 'medium',
+                timeStyle: 'medium',
+              })
+            : 'N/A';
+
+          const durationSec = updated.durationSeconds || 0;
+          const mins = Math.floor(durationSec / 60);
+          const secs = durationSec % 60;
+          const durationStr = `${mins}m ${secs}s`;
+
+          // Build checkpoint status list
+          const scannedLogMap = new Map(
+            updated.sessionLogs.map((log) => [log.checkpointId, log]),
+          );
+
+          const routeCheckpoints = updated.route?.checkpoints || [];
+          let checkpointBreakdown = '';
+          const issueSummary: string[] = [];
+          const allImageUrls: string[] = [];
+
+          routeCheckpoints.forEach((rc, index) => {
+            const cpName = rc.checkpoint.name;
+            const log = scannedLogMap.get(rc.checkpointId);
+
+            if (log) {
+              let statusIcon = '✅ Scanned';
+              if (log.severity === 'ISSUE_FOUND') statusIcon = '⚠️ Issue Found';
+              if (log.severity === 'EMERGENCY') statusIcon = '🚨 Emergency';
+
+              let logDetail = `${index + 1}. ${cpName} — ${statusIcon}`;
+              if (log.remarks) {
+                logDetail += ` (Remarks: ${log.remarks})`;
+              }
+              checkpointBreakdown += `${logDetail}\n`;
+
+              if (log.severity !== 'NORMAL' || log.remarks) {
+                issueSummary.push(
+                  `• *${cpName}* [${log.severity.replace('_', ' ')}]: ${log.remarks || 'No remarks'}`,
+                );
+              }
+
+              if (log.images && log.images.length > 0) {
+                log.images.forEach((img) => allImageUrls.push(img.imageUrl));
+              }
+            } else {
+              checkpointBreakdown += `${index + 1}. ${cpName} — ❌ Missed\n`;
+            }
+          });
+
+          let msg =
+            `🏁 *PATROL COMPLETED SUMMARY*\n\n` +
+            `*Guard:* ${updated.guard?.name || 'Unknown'}\n` +
+            `*Route:* ${updated.route?.name || 'Unknown'}\n` +
+            `*Start Time:* ${startTimeStr}\n` +
+            `*End Time:* ${endTimeStr}\n` +
+            `*Time Taken:* ${durationStr}\n` +
+            `*Progress:* ${updated.completedCount}/${updated.totalCount} (${updated.completionRate}%)\n\n` +
+            `📋 *Checkpoint Breakdown:*\n${checkpointBreakdown}`;
+
+          if (issueSummary.length > 0) {
+            msg += `\n⚠️ *Issues Details:*\n${issueSummary.join('\n')}`;
+          }
+
+          for (const admin of admins) {
+            if (admin.mobileNumber) {
+              await this.whatsappService.sendMessage(
+                admin.mobileNumber,
+                msg,
+                allImageUrls.length > 0 ? allImageUrls : undefined,
+              );
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Error sending WhatsApp patrol completion notification:', err);
+      }
     });
 
     return updated;

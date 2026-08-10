@@ -12,13 +12,16 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.IncidentsService = void 0;
 const common_1 = require("@nestjs/common");
 const prisma_service_1 = require("../prisma/prisma.service");
+const whatsapp_service_1 = require("../whatsapp/whatsapp.service");
 let IncidentsService = class IncidentsService {
     prisma;
-    constructor(prisma) {
+    whatsappService;
+    constructor(prisma, whatsappService) {
         this.prisma = prisma;
+        this.whatsappService = whatsappService;
     }
     async create(dto, guardId) {
-        return this.prisma.incident.create({
+        const incident = await this.prisma.incident.create({
             data: {
                 title: dto.title,
                 description: dto.description,
@@ -42,6 +45,35 @@ let IncidentsService = class IncidentsService {
                 },
             },
         });
+        setImmediate(async () => {
+            try {
+                const admins = await this.prisma.user.findMany({
+                    where: { role: 'ADMIN', mobileNumber: { not: null }, whatsappAlertEnabled: true },
+                });
+                if (admins.length > 0) {
+                    const timeStr = new Date(incident.createdAt).toLocaleString('en-US', {
+                        dateStyle: 'medium',
+                        timeStyle: 'medium',
+                    });
+                    const msg = `🚨 *INCIDENT REPORTED*\n\n` +
+                        `*Title:* ${incident.title}\n` +
+                        `*Reporter:* ${incident.guard?.name || 'Unknown'}\n` +
+                        `*Location:* ${incident.checkpoint?.name || 'General (Not linked to checkpoint)'}\n` +
+                        `*Description:* ${incident.description}\n` +
+                        `*Time:* ${timeStr}`;
+                    const imageUrls = incident.images.map((img) => img.imageUrl);
+                    for (const admin of admins) {
+                        if (admin.mobileNumber) {
+                            await this.whatsappService.sendMessage(admin.mobileNumber, msg, imageUrls.length > 0 ? imageUrls : undefined);
+                        }
+                    }
+                }
+            }
+            catch (err) {
+                console.error('Error sending WhatsApp incident notification:', err);
+            }
+        });
+        return incident;
     }
     async findAll() {
         return this.prisma.incident.findMany({
@@ -78,6 +110,7 @@ let IncidentsService = class IncidentsService {
 exports.IncidentsService = IncidentsService;
 exports.IncidentsService = IncidentsService = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [prisma_service_1.PrismaService])
+    __metadata("design:paramtypes", [prisma_service_1.PrismaService,
+        whatsapp_service_1.WhatsAppService])
 ], IncidentsService);
 //# sourceMappingURL=incidents.service.js.map

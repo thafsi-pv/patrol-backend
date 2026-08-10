@@ -55,8 +55,8 @@ export declare class PatrolSessionsService {
         id: string;
         guardId: string;
         status: import("@prisma/client").$Enums.SessionStatus;
-        routeId: string;
         shift: string | null;
+        routeId: string;
         startTime: Date;
         endTime: Date | null;
         durationSeconds: number | null;
@@ -177,8 +177,8 @@ export declare class PatrolSessionsService {
         id: string;
         guardId: string;
         status: import("@prisma/client").$Enums.SessionStatus;
-        routeId: string;
         shift: string | null;
+        routeId: string;
         startTime: Date;
         endTime: Date | null;
         durationSeconds: number | null;
@@ -257,8 +257,8 @@ export declare class PatrolSessionsService {
         id: string;
         guardId: string;
         status: import("@prisma/client").$Enums.SessionStatus;
-        routeId: string;
         shift: string | null;
+        routeId: string;
         startTime: Date;
         endTime: Date | null;
         durationSeconds: number | null;
@@ -308,8 +308,8 @@ export declare class PatrolSessionsService {
         id: string;
         guardId: string;
         status: import("@prisma/client").$Enums.SessionStatus;
-        routeId: string;
         shift: string | null;
+        routeId: string;
         startTime: Date;
         endTime: Date | null;
         durationSeconds: number | null;
@@ -387,8 +387,8 @@ export declare class PatrolSessionsService {
             id: string;
             guardId: string;
             status: import("@prisma/client").$Enums.SessionStatus;
-            routeId: string;
             shift: string | null;
+            routeId: string;
             startTime: Date;
             endTime: Date | null;
             durationSeconds: number | null;
@@ -481,8 +481,8 @@ export declare class PatrolSessionsService {
         id: string;
         guardId: string;
         status: import("@prisma/client").$Enums.SessionStatus;
-        routeId: string;
         shift: string | null;
+        routeId: string;
         startTime: Date;
         endTime: Date | null;
         durationSeconds: number | null;

@@ -11,11 +11,13 @@ const common_1 = require("@nestjs/common");
 const incidents_controller_1 = require("./incidents.controller");
 const incidents_service_1 = require("./incidents.service");
 const r2_storage_service_1 = require("./r2-storage.service");
+const whatsapp_module_1 = require("../whatsapp/whatsapp.module");
 let IncidentsModule = class IncidentsModule {
 };
 exports.IncidentsModule = IncidentsModule;
 exports.IncidentsModule = IncidentsModule = __decorate([
     (0, common_1.Module)({
+        imports: [whatsapp_module_1.WhatsAppModule],
         controllers: [incidents_controller_1.IncidentsController],
         providers: [incidents_service_1.IncidentsService, r2_storage_service_1.R2StorageService],
         exports: [incidents_service_1.IncidentsService, r2_storage_service_1.R2StorageService],

@@ -1,8 +1,10 @@
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateIncidentDto } from './dto/incident.dto';
+import { WhatsAppService } from '../whatsapp/whatsapp.service';
 export declare class IncidentsService {
     private readonly prisma;
-    constructor(prisma: PrismaService);
+    private readonly whatsappService;
+    constructor(prisma: PrismaService, whatsappService: WhatsAppService);
     create(dto: CreateIncidentDto, guardId: string): Promise<{
         checkpoint: {
             id: string;

@@ -11,11 +11,11 @@ export declare class PatrolSessionsController {
             scannedLongitude: number;
             gpsAccuracyMeters: number | null;
             distanceMeters: number | null;
-            severity: import("@prisma/client").$Enums.IncidentSeverity;
-            remarks: string | null;
             sessionId: string;
             scannedAt: Date;
             isVerified: boolean;
+            severity: import("@prisma/client").$Enums.IncidentSeverity;
+            remarks: string | null;
         }[];
         route: {
             checkpoints: ({
@@ -91,11 +91,11 @@ export declare class PatrolSessionsController {
             scannedLongitude: number;
             gpsAccuracyMeters: number | null;
             distanceMeters: number | null;
-            severity: import("@prisma/client").$Enums.IncidentSeverity;
-            remarks: string | null;
             sessionId: string;
             scannedAt: Date;
             isVerified: boolean;
+            severity: import("@prisma/client").$Enums.IncidentSeverity;
+            remarks: string | null;
         };
         isVerified: boolean;
         distanceMeters: number;
@@ -133,11 +133,11 @@ export declare class PatrolSessionsController {
             scannedLongitude: number;
             gpsAccuracyMeters: number | null;
             distanceMeters: number | null;
-            severity: import("@prisma/client").$Enums.IncidentSeverity;
-            remarks: string | null;
             sessionId: string;
             scannedAt: Date;
             isVerified: boolean;
+            severity: import("@prisma/client").$Enums.IncidentSeverity;
+            remarks: string | null;
         })[];
         route: {
             checkpoints: ({
@@ -213,11 +213,11 @@ export declare class PatrolSessionsController {
             scannedLongitude: number;
             gpsAccuracyMeters: number | null;
             distanceMeters: number | null;
-            severity: import("@prisma/client").$Enums.IncidentSeverity;
-            remarks: string | null;
             sessionId: string;
             scannedAt: Date;
             isVerified: boolean;
+            severity: import("@prisma/client").$Enums.IncidentSeverity;
+            remarks: string | null;
         })[];
         route: {
             checkpoints: ({
@@ -287,11 +287,11 @@ export declare class PatrolSessionsController {
             scannedLongitude: number;
             gpsAccuracyMeters: number | null;
             distanceMeters: number | null;
-            severity: import("@prisma/client").$Enums.IncidentSeverity;
-            remarks: string | null;
             sessionId: string;
             scannedAt: Date;
             isVerified: boolean;
+            severity: import("@prisma/client").$Enums.IncidentSeverity;
+            remarks: string | null;
         })[];
         route: {
             id: string;
@@ -343,11 +343,11 @@ export declare class PatrolSessionsController {
                 scannedLongitude: number;
                 gpsAccuracyMeters: number | null;
                 distanceMeters: number | null;
-                severity: import("@prisma/client").$Enums.IncidentSeverity;
-                remarks: string | null;
                 sessionId: string;
                 scannedAt: Date;
                 isVerified: boolean;
+                severity: import("@prisma/client").$Enums.IncidentSeverity;
+                remarks: string | null;
             })[];
             route: {
                 checkpoints: ({
@@ -403,11 +403,11 @@ export declare class PatrolSessionsController {
             id: string;
             deviceId: string | null;
             createdAt: Date;
+            sessionId: string | null;
             action: import("@prisma/client").$Enums.AuditAction;
             details: string | null;
             ipAddress: string | null;
             userId: string;
-            sessionId: string | null;
         }[];
         sessionLogs: ({
             checkpoint: {
@@ -437,11 +437,11 @@ export declare class PatrolSessionsController {
             scannedLongitude: number;
             gpsAccuracyMeters: number | null;
             distanceMeters: number | null;
-            severity: import("@prisma/client").$Enums.IncidentSeverity;
-            remarks: string | null;
             sessionId: string;
             scannedAt: Date;
             isVerified: boolean;
+            severity: import("@prisma/client").$Enums.IncidentSeverity;
+            remarks: string | null;
         })[];
         route: {
             checkpoints: ({

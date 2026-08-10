@@ -33,7 +33,7 @@ export declare class IncidentsService {
         patrolLogId: string | null;
         patrolSessionLogId: string | null;
     }>;
-    findAll(): Promise<({
+    findAll(): Promise<(({
         checkpoint: {
             id: string;
             name: string;
@@ -60,6 +60,30 @@ export declare class IncidentsService {
         title: string;
         patrolLogId: string | null;
         patrolSessionLogId: string | null;
+    }) | {
+        id: string;
+        title: string;
+        description: string;
+        checkpointId: string;
+        patrolSessionLogId: string;
+        createdAt: Date;
+        guard: {
+            id: string;
+            email: string;
+            name: string;
+        };
+        checkpoint: {
+            id: string;
+            name: string;
+        };
+        images: {
+            id: string;
+            createdAt: Date;
+            patrolSessionLogId: string | null;
+            imageUrl: string;
+            r2Key: string;
+            incidentId: string | null;
+        }[];
     })[]>;
     findOne(id: string): Promise<{
         checkpoint: {

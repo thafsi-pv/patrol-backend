@@ -78,18 +78,72 @@ export class IncidentsService {
   }
 
   async findAll() {
-    return this.prisma.incident.findMany({
-      orderBy: { createdAt: 'desc' },
-      include: {
-        images: true,
-        guard: {
-          select: { id: true, name: true, email: true },
+    const [incidents, sessionLogIssues] = await Promise.all([
+      this.prisma.incident.findMany({
+        orderBy: { createdAt: 'desc' },
+        include: {
+          images: true,
+          guard: {
+            select: { id: true, name: true, email: true },
+          },
+          checkpoint: {
+            select: { id: true, name: true },
+          },
         },
-        checkpoint: {
-          select: { id: true, name: true },
+      }),
+      this.prisma.patrolSessionLog.findMany({
+        where: {
+          OR: [
+            { severity: { in: ['ISSUE_FOUND', 'EMERGENCY'] } },
+            { remarks: { not: null } },
+            { images: { some: {} } },
+          ],
         },
-      },
-    });
+        orderBy: { scannedAt: 'desc' },
+        include: {
+          checkpoint: { select: { id: true, name: true } },
+          images: true,
+          session: {
+            include: {
+              guard: { select: { id: true, name: true, email: true } },
+            },
+          },
+        },
+      }),
+    ]);
+
+    // Map session log issues that don't have a linked incident record already
+    const existingPatrolSessionLogIds = new Set(
+      incidents.map((i) => i.patrolSessionLogId).filter(Boolean),
+    );
+
+    const convertedSessionIssues = sessionLogIssues
+      .filter((log) => !existingPatrolSessionLogIds.has(log.id))
+      .map((log) => {
+        const severityTitle =
+          log.severity === 'EMERGENCY'
+            ? `🚨 EMERGENCY: ${log.checkpoint?.name || 'Checkpoint'}`
+            : log.severity === 'ISSUE_FOUND'
+            ? `⚠️ ISSUE FOUND: ${log.checkpoint?.name || 'Checkpoint'}`
+            : `Remark at ${log.checkpoint?.name || 'Checkpoint'}`;
+
+        return {
+          id: `log-${log.id}`,
+          title: severityTitle,
+          description: log.remarks || `Reported during patrol scan at ${log.checkpoint?.name || 'checkpoint'}`,
+          checkpointId: log.checkpointId,
+          patrolSessionLogId: log.id,
+          createdAt: log.scannedAt,
+          guard: log.session?.guard || { id: 'unknown', name: 'Guard', email: '' },
+          checkpoint: log.checkpoint || undefined,
+          images: log.images || [],
+        };
+      });
+
+    // Combine and sort by createdAt descending
+    return [...incidents, ...convertedSessionIssues].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    );
   }
 
   async findOne(id: string) {

@@ -181,6 +181,38 @@ export class PatrolSessionsService {
       include: { checkpoint: true, images: true },
     });
 
+    // If scan has an issue, emergency, remarks, or images, create an Incident record
+    if (severity !== 'NORMAL' || dto.remarks || (dto.images && dto.images.length > 0)) {
+      try {
+        const title =
+          severity === 'EMERGENCY'
+            ? `🚨 EMERGENCY: ${checkpoint.name}`
+            : severity === 'ISSUE_FOUND'
+            ? `⚠️ ISSUE FOUND: ${checkpoint.name}`
+            : `Remark at Checkpoint: ${checkpoint.name}`;
+
+        await this.prisma.incident.create({
+          data: {
+            title,
+            description: dto.remarks || `Issue reported during patrol scan at ${checkpoint.name}`,
+            checkpointId: checkpoint.id,
+            patrolSessionLogId: sessionLog.id,
+            guardId,
+            images: dto.images?.length
+              ? {
+                  create: dto.images.map((img) => ({
+                    imageUrl: img.imageUrl,
+                    r2Key: img.r2Key,
+                  })),
+                }
+              : undefined,
+          },
+        });
+      } catch (incErr) {
+        console.error('Failed to create Incident record for session log:', incErr);
+      }
+    }
+
     // Create audit entry for successful scan
     await this.prisma.auditLog.create({
       data: {

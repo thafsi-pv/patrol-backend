@@ -34,7 +34,7 @@ export declare class IncidentsController {
         patrolLogId: string | null;
         patrolSessionLogId: string | null;
     }>;
-    getIncidents(): Promise<({
+    getIncidents(): Promise<(({
         checkpoint: {
             id: string;
             name: string;
@@ -61,6 +61,30 @@ export declare class IncidentsController {
         title: string;
         patrolLogId: string | null;
         patrolSessionLogId: string | null;
+    }) | {
+        id: string;
+        title: string;
+        description: string;
+        checkpointId: string;
+        patrolSessionLogId: string;
+        createdAt: Date;
+        guard: {
+            id: string;
+            email: string;
+            name: string;
+        };
+        checkpoint: {
+            id: string;
+            name: string;
+        };
+        images: {
+            id: string;
+            createdAt: Date;
+            patrolSessionLogId: string | null;
+            imageUrl: string;
+            r2Key: string;
+            incidentId: string | null;
+        }[];
     })[]>;
     getIncident(id: string): Promise<{
         checkpoint: {

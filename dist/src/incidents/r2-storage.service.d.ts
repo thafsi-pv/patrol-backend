@@ -17,5 +17,5 @@ export declare class R2StorageService {
     private apiSecret;
     private isConfigured;
     constructor(config: ConfigService);
-    generatePresignedUrl(contentType: string, fileExtension?: string): Promise<PresignedUrlResponse>;
+    generatePresignedUrl(contentType: string, fileExtension?: string, resourceType?: string): Promise<PresignedUrlResponse>;
 }

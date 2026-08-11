@@ -40,18 +40,29 @@ let R2StorageService = R2StorageService_1 = class R2StorageService {
             this.logger.warn('Cloudinary credentials not configured in environment. Presigned URLs will fallback to mock mode.');
         }
     }
-    async generatePresignedUrl(contentType, fileExtension = 'jpg') {
+    async generatePresignedUrl(contentType, fileExtension = 'jpg', resourceType = 'auto') {
         const timestamp = Math.round(new Date().getTime() / 1000);
         const folder = 'patrol_issues';
         const publicId = `${folder}/${(0, uuid_1.v4)()}`;
+        let resType = resourceType;
+        if (!resType || resType === 'auto') {
+            if (contentType.startsWith('video/'))
+                resType = 'video';
+            else if (contentType.startsWith('audio/'))
+                resType = 'video';
+            else if (contentType.startsWith('image/'))
+                resType = 'image';
+            else
+                resType = 'raw';
+        }
         if (this.isConfigured) {
             const paramsToSign = {
                 timestamp,
                 folder,
             };
             const signature = cloudinary_1.v2.utils.api_sign_request(paramsToSign, this.apiSecret);
-            const uploadUrl = `https://api.cloudinary.com/v1_1/${this.cloudName}/image/upload`;
-            const imageUrl = `https://res.cloudinary.com/${this.cloudName}/image/upload/v${timestamp}/${publicId}`;
+            const uploadUrl = `https://api.cloudinary.com/v1_1/${this.cloudName}/${resType}/upload`;
+            const imageUrl = `https://res.cloudinary.com/${this.cloudName}/${resType}/upload/v${timestamp}/${publicId}`;
             return {
                 uploadUrl,
                 imageUrl,
@@ -63,7 +74,7 @@ let R2StorageService = R2StorageService_1 = class R2StorageService {
                 publicId,
             };
         }
-        const fallbackBaseUrl = 'https://res.cloudinary.com/demo/image/upload';
+        const fallbackBaseUrl = `https://res.cloudinary.com/demo/${resType}/upload`;
         return {
             uploadUrl: `${fallbackBaseUrl}/mock-upload/${publicId}?mock=true`,
             imageUrl: `${fallbackBaseUrl}/${publicId}`,

@@ -28,12 +28,12 @@ let IncidentsService = class IncidentsService {
                 checkpointId: dto.checkpointId || null,
                 patrolLogId: dto.patrolLogId || null,
                 guardId,
-                images: {
+                images: dto.images && dto.images.length > 0 ? {
                     create: dto.images.map((img) => ({
                         imageUrl: img.imageUrl,
                         r2Key: img.r2Key,
                     })),
-                },
+                } : undefined,
             },
             include: {
                 images: true,

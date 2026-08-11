@@ -29,7 +29,7 @@ let IncidentsController = class IncidentsController {
         this.r2StorageService = r2StorageService;
     }
     async getPresignedUrl(dto) {
-        return this.r2StorageService.generatePresignedUrl(dto.contentType, dto.fileExtension);
+        return this.r2StorageService.generatePresignedUrl(dto.contentType, dto.fileExtension, dto.resourceType);
     }
     async createIncident(dto, req) {
         return this.incidentsService.create(dto, req.user.id);

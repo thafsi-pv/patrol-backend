@@ -14,6 +14,7 @@ const class_validator_1 = require("class-validator");
 class GetPresignedUrlDto {
     contentType;
     fileExtension;
+    resourceType;
 }
 exports.GetPresignedUrlDto = GetPresignedUrlDto;
 __decorate([
@@ -26,6 +27,11 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], GetPresignedUrlDto.prototype, "fileExtension", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], GetPresignedUrlDto.prototype, "resourceType", void 0);
 class CreateIncidentDto {
     title;
     description;
@@ -56,7 +62,7 @@ __decorate([
 ], CreateIncidentDto.prototype, "patrolLogId", void 0);
 __decorate([
     (0, class_validator_1.IsArray)(),
-    (0, class_validator_1.ArrayMinSize)(1),
+    (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Array)
 ], CreateIncidentDto.prototype, "images", void 0);
 //# sourceMappingURL=incident.dto.js.map

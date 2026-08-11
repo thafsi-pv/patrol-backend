@@ -21,6 +21,7 @@ export class IncidentsController {
     return this.r2StorageService.generatePresignedUrl(
       dto.contentType,
       dto.fileExtension,
+      dto.resourceType,
     );
   }
 

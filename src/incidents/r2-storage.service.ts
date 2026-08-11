@@ -43,15 +43,25 @@ export class R2StorageService {
   }
 
   /**
-   * Generates a signed upload signature for direct browser-to-Cloudinary image upload
+   * Generates a signed upload signature for direct browser-to-Cloudinary media upload (image/video/audio/file)
    */
   async generatePresignedUrl(
     contentType: string,
     fileExtension = 'jpg',
+    resourceType = 'auto',
   ): Promise<PresignedUrlResponse> {
     const timestamp = Math.round(new Date().getTime() / 1000);
     const folder = 'patrol_issues';
     const publicId = `${folder}/${uuidv4()}`;
+
+    // Determine target resource type for Cloudinary API endpoint
+    let resType = resourceType;
+    if (!resType || resType === 'auto') {
+      if (contentType.startsWith('video/')) resType = 'video';
+      else if (contentType.startsWith('audio/')) resType = 'video'; // Cloudinary handles audio under video endpoint
+      else if (contentType.startsWith('image/')) resType = 'image';
+      else resType = 'raw';
+    }
 
     if (this.isConfigured) {
       // Create Cloudinary signed upload parameters
@@ -65,8 +75,8 @@ export class R2StorageService {
         this.apiSecret,
       );
 
-      const uploadUrl = `https://api.cloudinary.com/v1_1/${this.cloudName}/image/upload`;
-      const imageUrl = `https://res.cloudinary.com/${this.cloudName}/image/upload/v${timestamp}/${publicId}`;
+      const uploadUrl = `https://api.cloudinary.com/v1_1/${this.cloudName}/${resType}/upload`;
+      const imageUrl = `https://res.cloudinary.com/${this.cloudName}/${resType}/upload/v${timestamp}/${publicId}`;
 
       return {
         uploadUrl,
@@ -81,7 +91,7 @@ export class R2StorageService {
     }
 
     // Fallback/Mock mode if Cloudinary keys are not supplied in .env yet
-    const fallbackBaseUrl = 'https://res.cloudinary.com/demo/image/upload';
+    const fallbackBaseUrl = `https://res.cloudinary.com/demo/${resType}/upload`;
     return {
       uploadUrl: `${fallbackBaseUrl}/mock-upload/${publicId}?mock=true`,
       imageUrl: `${fallbackBaseUrl}/${publicId}`,
@@ -89,3 +99,4 @@ export class R2StorageService {
     };
   }
 }
+

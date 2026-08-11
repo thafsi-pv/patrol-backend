@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsOptional, IsArray, ArrayMinSize } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsArray } from 'class-validator';
 
 export class GetPresignedUrlDto {
   @IsString()
@@ -8,6 +8,10 @@ export class GetPresignedUrlDto {
   @IsString()
   @IsOptional()
   fileExtension?: string;
+
+  @IsString()
+  @IsOptional()
+  resourceType?: string; // 'image' | 'video' | 'raw' | 'auto'
 }
 
 export class CreateIncidentDto {
@@ -28,6 +32,7 @@ export class CreateIncidentDto {
   patrolLogId?: string;
 
   @IsArray()
-  @ArrayMinSize(1)
-  images: { imageUrl: string; r2Key: string }[];
+  @IsOptional()
+  images?: { imageUrl: string; r2Key: string }[];
 }
+

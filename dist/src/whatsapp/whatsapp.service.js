@@ -175,7 +175,7 @@ let WhatsAppService = WhatsAppService_1 = class WhatsAppService {
         this.retryCount = 0;
         await this.connectToWhatsApp();
     }
-    async sendMessage(to, text, imageUrls) {
+    async sendMessage(to, text, mediaUrls) {
         if (!this.sock || !this.isConnected) {
             this.logger.warn(`Cannot send WhatsApp message to ${to}. WhatsApp bot is not connected.`);
             return;
@@ -185,18 +185,53 @@ let WhatsAppService = WhatsAppService_1 = class WhatsAppService {
             if (!cleanNum.endsWith('@s.whatsapp.net')) {
                 cleanNum = `${cleanNum}@s.whatsapp.net`;
             }
-            if (imageUrls && imageUrls.length > 0) {
-                for (let i = 0; i < imageUrls.length; i++) {
-                    const url = imageUrls[i];
+            if (mediaUrls && mediaUrls.length > 0) {
+                for (let i = 0; i < mediaUrls.length; i++) {
+                    const url = mediaUrls[i];
+                    const caption = i === 0 ? text : `Media (${i + 1}/${mediaUrls.length})`;
+                    const lowerUrl = url.toLowerCase();
                     try {
-                        await this.sock.sendMessage(cleanNum, {
-                            image: { url },
-                            caption: i === 0 ? text : `(${i + 1}/${imageUrls.length})`,
-                        });
-                        this.logger.log(`WhatsApp image sent to ${cleanNum}: ${url}`);
+                        if (lowerUrl.includes('/video/upload/') ||
+                            lowerUrl.match(/\.(mp4|mov|avi|mkv|webm)(\?.*)?$/)) {
+                            await this.sock.sendMessage(cleanNum, {
+                                video: { url },
+                                caption,
+                                mimetype: 'video/mp4',
+                            });
+                            this.logger.log(`WhatsApp video sent to ${cleanNum}: ${url}`);
+                        }
+                        else if (lowerUrl.match(/\.(mp3|wav|ogg|m4a|aac|opus)(\?.*)?$/)) {
+                            await this.sock.sendMessage(cleanNum, {
+                                audio: { url },
+                                mimetype: lowerUrl.includes('.m4a') ? 'audio/mp4' : lowerUrl.includes('.ogg') ? 'audio/ogg' : 'audio/mp3',
+                                ptt: true,
+                            });
+                            if (i === 0 && text) {
+                                await this.sock.sendMessage(cleanNum, { text: `🎙️ *Voice Note Attachment*\n\n${text}` });
+                            }
+                            this.logger.log(`WhatsApp audio note sent to ${cleanNum}: ${url}`);
+                        }
+                        else if (lowerUrl.includes('/image/upload/') ||
+                            lowerUrl.match(/\.(jpg|jpeg|png|gif|webp|heic)(\?.*)?$/)) {
+                            await this.sock.sendMessage(cleanNum, {
+                                image: { url },
+                                caption,
+                            });
+                            this.logger.log(`WhatsApp image sent to ${cleanNum}: ${url}`);
+                        }
+                        else {
+                            const filename = url.split('/').pop()?.split('?')[0] || 'attachment';
+                            await this.sock.sendMessage(cleanNum, {
+                                document: { url },
+                                caption,
+                                fileName: filename,
+                                mimetype: 'application/octet-stream',
+                            });
+                            this.logger.log(`WhatsApp document sent to ${cleanNum}: ${url}`);
+                        }
                     }
-                    catch (imgErr) {
-                        this.logger.error(`Failed to send WhatsApp image to ${to}: ${url}`, imgErr);
+                    catch (mediaErr) {
+                        this.logger.error(`Failed to send WhatsApp media to ${to}: ${url}`, mediaErr);
                     }
                 }
             }

@@ -14,7 +14,7 @@ export declare class WhatsAppService implements OnModuleInit, OnModuleDestroy {
     getPairingCode(phoneNumber: string): Promise<string>;
     logout(skipReconnect?: boolean): Promise<void>;
     manualReconnect(): Promise<void>;
-    sendMessage(to: string, text: string, imageUrls?: string[]): Promise<void>;
+    sendMessage(to: string, text: string, mediaUrls?: string[]): Promise<void>;
     getConnectionStatus(): {
         connected: boolean;
         registered: boolean;

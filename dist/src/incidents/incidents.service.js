@@ -32,6 +32,7 @@ let IncidentsService = class IncidentsService {
                     create: dto.images.map((img) => ({
                         imageUrl: img.imageUrl,
                         r2Key: img.r2Key,
+                        mediaType: img.mediaType ? img.mediaType.toUpperCase() : 'IMAGE',
                     })),
                 } : undefined,
             },
@@ -61,10 +62,13 @@ let IncidentsService = class IncidentsService {
                         `*Location:* ${incident.checkpoint?.name || 'General (Not linked to checkpoint)'}\n` +
                         `*Description:* ${incident.description}\n` +
                         `*Time:* ${timeStr}`;
-                    const imageUrls = incident.images.map((img) => img.imageUrl);
+                    const mediaItems = incident.images.map((img) => ({
+                        imageUrl: img.imageUrl,
+                        mediaType: img.mediaType,
+                    }));
                     for (const admin of admins) {
                         if (admin.mobileNumber) {
-                            await this.whatsappService.sendMessage(admin.mobileNumber, msg, imageUrls.length > 0 ? imageUrls : undefined);
+                            await this.whatsappService.sendMessage(admin.mobileNumber, msg, mediaItems.length > 0 ? mediaItems : undefined);
                         }
                     }
                 }

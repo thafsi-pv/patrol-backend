@@ -13,6 +13,7 @@ export declare class ScanCheckpointDto {
     images?: {
         imageUrl: string;
         r2Key: string;
+        mediaType?: string;
     }[];
     deviceId?: string;
 }

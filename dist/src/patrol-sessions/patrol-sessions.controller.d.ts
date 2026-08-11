@@ -82,6 +82,7 @@ export declare class PatrolSessionsController {
                 patrolSessionLogId: string | null;
                 imageUrl: string;
                 r2Key: string;
+                mediaType: string;
                 incidentId: string | null;
             }[];
         } & {
@@ -124,6 +125,7 @@ export declare class PatrolSessionsController {
                 patrolSessionLogId: string | null;
                 imageUrl: string;
                 r2Key: string;
+                mediaType: string;
                 incidentId: string | null;
             }[];
         } & {
@@ -204,6 +206,7 @@ export declare class PatrolSessionsController {
                 patrolSessionLogId: string | null;
                 imageUrl: string;
                 r2Key: string;
+                mediaType: string;
                 incidentId: string | null;
             }[];
         } & {
@@ -278,6 +281,7 @@ export declare class PatrolSessionsController {
                 patrolSessionLogId: string | null;
                 imageUrl: string;
                 r2Key: string;
+                mediaType: string;
                 incidentId: string | null;
             }[];
         } & {
@@ -334,6 +338,7 @@ export declare class PatrolSessionsController {
                     patrolSessionLogId: string | null;
                     imageUrl: string;
                     r2Key: string;
+                    mediaType: string;
                     incidentId: string | null;
                 }[];
             } & {
@@ -428,6 +433,7 @@ export declare class PatrolSessionsController {
                 patrolSessionLogId: string | null;
                 imageUrl: string;
                 r2Key: string;
+                mediaType: string;
                 incidentId: string | null;
             }[];
         } & {

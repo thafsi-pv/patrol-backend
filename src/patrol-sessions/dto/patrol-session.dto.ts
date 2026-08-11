@@ -38,10 +38,10 @@ export class ScanCheckpointDto {
   @IsOptional()
   remarks?: string;
 
-  // Optional uploaded images to attach to this checkpoint scan
+  // Optional uploaded media attachments to attach to this checkpoint scan
   @IsArray()
   @IsOptional()
-  images?: { imageUrl: string; r2Key: string }[];
+  images?: { imageUrl: string; r2Key: string; mediaType?: string }[];
 
   @IsString()
   @IsOptional()

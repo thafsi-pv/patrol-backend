@@ -172,7 +172,7 @@ let WhatsAppService = WhatsAppService_1 = class WhatsAppService {
         this.retryCount = 0;
         await this.connectToWhatsApp();
     }
-    async sendMessage(to, text, mediaUrls) {
+    async sendMessage(to, text, mediaItems) {
         if (!this.sock || !this.isConnected) {
             this.logger.warn(`Cannot send WhatsApp message to ${to}. WhatsApp bot is not connected.`);
             return;
@@ -182,25 +182,37 @@ let WhatsAppService = WhatsAppService_1 = class WhatsAppService {
             if (!cleanNum.endsWith('@s.whatsapp.net')) {
                 cleanNum = `${cleanNum}@s.whatsapp.net`;
             }
-            if (mediaUrls && mediaUrls.length > 0) {
-                for (let i = 0; i < mediaUrls.length; i++) {
-                    const url = mediaUrls[i];
-                    const caption = i === 0 ? text : `Media (${i + 1}/${mediaUrls.length})`;
+            if (mediaItems && mediaItems.length > 0) {
+                for (let i = 0; i < mediaItems.length; i++) {
+                    const item = mediaItems[i];
+                    const url = typeof item === 'string' ? item : item.imageUrl;
+                    const explicitType = (typeof item === 'object' ? item.mediaType : undefined)?.toUpperCase();
+                    const caption = i === 0 ? text : `Media (${i + 1}/${mediaItems.length})`;
                     const lowerUrl = url.toLowerCase();
                     try {
-                        if (lowerUrl.includes('/video/upload/') ||
-                            lowerUrl.match(/\.(mp4|mov|avi|mkv|webm)(\?.*)?$/)) {
-                            await this.sock.sendMessage(cleanNum, {
-                                video: { url },
-                                caption,
-                                mimetype: 'video/mp4',
-                            });
-                            this.logger.log(`WhatsApp video sent to ${cleanNum}: ${url}`);
-                        }
-                        else if (lowerUrl.match(/\.(mp3|wav|ogg|m4a|aac|opus)(\?.*)?$/)) {
+                        const isAudio = explicitType === 'AUDIO' ||
+                            lowerUrl.includes('.webm') ||
+                            lowerUrl.match(/\.(mp3|wav|ogg|m4a|aac|opus)(\?.*)?$/);
+                        const isVideo = !isAudio &&
+                            (explicitType === 'VIDEO' ||
+                                lowerUrl.includes('/video/upload/') ||
+                                lowerUrl.match(/\.(mp4|mov|avi|mkv)(\?.*)?$/));
+                        const isImage = !isAudio &&
+                            !isVideo &&
+                            (explicitType === 'IMAGE' ||
+                                lowerUrl.includes('/image/upload/') ||
+                                lowerUrl.match(/\.(jpg|jpeg|png|gif|webp|heic)(\?.*)?$/));
+                        if (isAudio) {
+                            const mimetype = lowerUrl.includes('.m4a')
+                                ? 'audio/mp4'
+                                : lowerUrl.includes('.ogg')
+                                    ? 'audio/ogg'
+                                    : lowerUrl.includes('.webm')
+                                        ? 'audio/webm'
+                                        : 'audio/mp3';
                             await this.sock.sendMessage(cleanNum, {
                                 audio: { url },
-                                mimetype: lowerUrl.includes('.m4a') ? 'audio/mp4' : lowerUrl.includes('.ogg') ? 'audio/ogg' : 'audio/mp3',
+                                mimetype,
                                 ptt: true,
                             });
                             if (i === 0 && text) {
@@ -208,8 +220,15 @@ let WhatsAppService = WhatsAppService_1 = class WhatsAppService {
                             }
                             this.logger.log(`WhatsApp audio note sent to ${cleanNum}: ${url}`);
                         }
-                        else if (lowerUrl.includes('/image/upload/') ||
-                            lowerUrl.match(/\.(jpg|jpeg|png|gif|webp|heic)(\?.*)?$/)) {
+                        else if (isVideo) {
+                            await this.sock.sendMessage(cleanNum, {
+                                video: { url },
+                                caption,
+                                mimetype: 'video/mp4',
+                            });
+                            this.logger.log(`WhatsApp video sent to ${cleanNum}: ${url}`);
+                        }
+                        else if (isImage) {
                             await this.sock.sendMessage(cleanNum, {
                                 image: { url },
                                 caption,

@@ -21,6 +21,7 @@ export declare class IncidentsService {
             patrolSessionLogId: string | null;
             imageUrl: string;
             r2Key: string;
+            mediaType: string;
             incidentId: string | null;
         }[];
     } & {
@@ -49,6 +50,7 @@ export declare class IncidentsService {
             patrolSessionLogId: string | null;
             imageUrl: string;
             r2Key: string;
+            mediaType: string;
             incidentId: string | null;
         }[];
     } & {
@@ -82,6 +84,7 @@ export declare class IncidentsService {
             patrolSessionLogId: string | null;
             imageUrl: string;
             r2Key: string;
+            mediaType: string;
             incidentId: string | null;
         }[];
     })[]>;
@@ -101,6 +104,7 @@ export declare class IncidentsService {
             patrolSessionLogId: string | null;
             imageUrl: string;
             r2Key: string;
+            mediaType: string;
             incidentId: string | null;
         }[];
     } & {

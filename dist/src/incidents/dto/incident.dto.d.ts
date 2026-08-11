@@ -11,5 +11,6 @@ export declare class CreateIncidentDto {
     images?: {
         imageUrl: string;
         r2Key: string;
+        mediaType?: string;
     }[];
 }

@@ -152,7 +152,11 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
     await this.connectToWhatsApp();
   }
 
-  async sendMessage(to: string, text: string, mediaUrls?: string[]): Promise<void> {
+  async sendMessage(
+    to: string,
+    text: string,
+    mediaItems?: (string | { imageUrl: string; mediaType?: string })[],
+  ): Promise<void> {
     if (!this.sock || !this.isConnected) {
       this.logger.warn(`Cannot send WhatsApp message to ${to}. WhatsApp bot is not connected.`);
       return;
@@ -164,18 +168,55 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
         cleanNum = `${cleanNum}@s.whatsapp.net`;
       }
 
-      if (mediaUrls && mediaUrls.length > 0) {
-        for (let i = 0; i < mediaUrls.length; i++) {
-          const url = mediaUrls[i];
-          const caption = i === 0 ? text : `Media (${i + 1}/${mediaUrls.length})`;
+      if (mediaItems && mediaItems.length > 0) {
+        for (let i = 0; i < mediaItems.length; i++) {
+          const item = mediaItems[i];
+          const url = typeof item === 'string' ? item : item.imageUrl;
+          const explicitType = (typeof item === 'object' ? item.mediaType : undefined)?.toUpperCase();
+          const caption = i === 0 ? text : `Media (${i + 1}/${mediaItems.length})`;
           const lowerUrl = url.toLowerCase();
 
           try {
-            // Classify media type from Cloudinary URL or extension
-            if (
-              lowerUrl.includes('/video/upload/') ||
-              lowerUrl.match(/\.(mp4|mov|avi|mkv|webm)(\?.*)?$/)
-            ) {
+            // Determine type by explicit stored DB type OR URL inspection
+            const isAudio =
+              explicitType === 'AUDIO' ||
+              lowerUrl.includes('.webm') ||
+              lowerUrl.match(/\.(mp3|wav|ogg|m4a|aac|opus)(\?.*)?$/);
+
+            const isVideo =
+              !isAudio &&
+              (explicitType === 'VIDEO' ||
+                lowerUrl.includes('/video/upload/') ||
+                lowerUrl.match(/\.(mp4|mov|avi|mkv)(\?.*)?$/));
+
+            const isImage =
+              !isAudio &&
+              !isVideo &&
+              (explicitType === 'IMAGE' ||
+                lowerUrl.includes('/image/upload/') ||
+                lowerUrl.match(/\.(jpg|jpeg|png|gif|webp|heic)(\?.*)?$/));
+
+            if (isAudio) {
+              // Send Audio / Voice note attachment
+              const mimetype = lowerUrl.includes('.m4a')
+                ? 'audio/mp4'
+                : lowerUrl.includes('.ogg')
+                ? 'audio/ogg'
+                : lowerUrl.includes('.webm')
+                ? 'audio/webm'
+                : 'audio/mp3';
+
+              await this.sock.sendMessage(cleanNum, {
+                audio: { url },
+                mimetype,
+                ptt: true, // Send as playable push-to-talk voice note in WhatsApp chat
+              });
+
+              if (i === 0 && text) {
+                await this.sock.sendMessage(cleanNum, { text: `🎙️ *Voice Note Attachment*\n\n${text}` });
+              }
+              this.logger.log(`WhatsApp audio note sent to ${cleanNum}: ${url}`);
+            } else if (isVideo) {
               // Video attachment
               await this.sock.sendMessage(cleanNum, {
                 video: { url },
@@ -183,24 +224,7 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
                 mimetype: 'video/mp4',
               });
               this.logger.log(`WhatsApp video sent to ${cleanNum}: ${url}`);
-            } else if (
-              lowerUrl.match(/\.(mp3|wav|ogg|m4a|aac|opus)(\?.*)?$/)
-            ) {
-              // Audio / Voice note attachment
-              await this.sock.sendMessage(cleanNum, {
-                audio: { url },
-                mimetype: lowerUrl.includes('.m4a') ? 'audio/mp4' : lowerUrl.includes('.ogg') ? 'audio/ogg' : 'audio/mp3',
-                ptt: true, // Send as playable push-to-talk voice note in WhatsApp chat
-              });
-              // Send text caption as follow-up message for audio
-              if (i === 0 && text) {
-                await this.sock.sendMessage(cleanNum, { text: `🎙️ *Voice Note Attachment*\n\n${text}` });
-              }
-              this.logger.log(`WhatsApp audio note sent to ${cleanNum}: ${url}`);
-            } else if (
-              lowerUrl.includes('/image/upload/') ||
-              lowerUrl.match(/\.(jpg|jpeg|png|gif|webp|heic)(\?.*)?$/)
-            ) {
+            } else if (isImage) {
               // Image attachment
               await this.sock.sendMessage(cleanNum, {
                 image: { url },
@@ -208,7 +232,7 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
               });
               this.logger.log(`WhatsApp image sent to ${cleanNum}: ${url}`);
             } else {
-              // General Document / File attachment (PDF, DOCX, etc.)
+              // Document / File attachment
               const filename = url.split('/').pop()?.split('?')[0] || 'attachment';
               await this.sock.sendMessage(cleanNum, {
                 document: { url },

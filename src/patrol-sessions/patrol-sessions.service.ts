@@ -173,7 +173,11 @@ export class PatrolSessionsService {
         ...(dto.images?.length
           ? {
               images: {
-                create: dto.images.map(img => ({ imageUrl: img.imageUrl, r2Key: img.r2Key })),
+                create: dto.images.map(img => ({
+                  imageUrl: img.imageUrl,
+                  r2Key: img.r2Key,
+                  mediaType: img.mediaType ? img.mediaType.toUpperCase() : 'IMAGE',
+                })),
               },
             }
           : {}),
@@ -203,6 +207,7 @@ export class PatrolSessionsService {
                   create: dto.images.map((img) => ({
                     imageUrl: img.imageUrl,
                     r2Key: img.r2Key,
+                    mediaType: img.mediaType ? img.mediaType.toUpperCase() : 'IMAGE',
                   })),
                 }
               : undefined,
@@ -256,11 +261,14 @@ export class PatrolSessionsService {
               `*Time:* ${new Date().toLocaleString()}\n` +
               `*Distance:* ${Math.round(distance)}m`;
 
-            const imageUrls = dto.images?.map(img => img.imageUrl) || [];
+            const mediaItems = dto.images?.map(img => ({
+              imageUrl: img.imageUrl,
+              mediaType: img.mediaType,
+            })) || [];
 
             for (const admin of admins) {
               if (admin.mobileNumber) {
-                await this.whatsappService.sendMessage(admin.mobileNumber, msg, imageUrls);
+                await this.whatsappService.sendMessage(admin.mobileNumber, msg, mediaItems);
               }
             }
           }

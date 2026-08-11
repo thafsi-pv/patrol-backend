@@ -195,6 +195,7 @@ model IssueImage {
   id                 String            @id @default(uuid())
   imageUrl           String            // Public/Cloudinary access URL stored in DB
   r2Key              String            // storage object key
+  mediaType          String            @default("IMAGE") // IMAGE, AUDIO, VIDEO, FILE
   incidentId         String?
   incident           Incident?         @relation(fields: [incidentId], references: [id], onDelete: Cascade)
   patrolSessionLogId String?

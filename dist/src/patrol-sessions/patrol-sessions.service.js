@@ -153,7 +153,11 @@ let PatrolSessionsService = class PatrolSessionsService {
                 ...(dto.images?.length
                     ? {
                         images: {
-                            create: dto.images.map(img => ({ imageUrl: img.imageUrl, r2Key: img.r2Key })),
+                            create: dto.images.map(img => ({
+                                imageUrl: img.imageUrl,
+                                r2Key: img.r2Key,
+                                mediaType: img.mediaType ? img.mediaType.toUpperCase() : 'IMAGE',
+                            })),
                         },
                     }
                     : {}),
@@ -179,6 +183,7 @@ let PatrolSessionsService = class PatrolSessionsService {
                                 create: dto.images.map((img) => ({
                                     imageUrl: img.imageUrl,
                                     r2Key: img.r2Key,
+                                    mediaType: img.mediaType ? img.mediaType.toUpperCase() : 'IMAGE',
                                 })),
                             }
                             : undefined,
@@ -223,10 +228,13 @@ let PatrolSessionsService = class PatrolSessionsService {
                             `*Remarks:* ${dto.remarks || 'None'}\n` +
                             `*Time:* ${new Date().toLocaleString()}\n` +
                             `*Distance:* ${Math.round(distance)}m`;
-                        const imageUrls = dto.images?.map(img => img.imageUrl) || [];
+                        const mediaItems = dto.images?.map(img => ({
+                            imageUrl: img.imageUrl,
+                            mediaType: img.mediaType,
+                        })) || [];
                         for (const admin of admins) {
                             if (admin.mobileNumber) {
-                                await this.whatsappService.sendMessage(admin.mobileNumber, msg, imageUrls);
+                                await this.whatsappService.sendMessage(admin.mobileNumber, msg, mediaItems);
                             }
                         }
                     }

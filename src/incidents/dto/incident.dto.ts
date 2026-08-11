@@ -33,6 +33,6 @@ export class CreateIncidentDto {
 
   @IsArray()
   @IsOptional()
-  images?: { imageUrl: string; r2Key: string }[];
+  images?: { imageUrl: string; r2Key: string; mediaType?: string }[];
 }
 

@@ -6,8 +6,19 @@ import makeWASocket, {
 } from '@whiskeysockets/baileys';
 import { Boom } from '@hapi/boom';
 import * as qrcode from 'qrcode-terminal';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as os from 'os';
+import * as https from 'https';
+import * as http from 'http';
+import ffmpeg from 'fluent-ffmpeg';
+import ffmpegInstaller from '@ffmpeg-installer/ffmpeg';
 import { PrismaService } from '../prisma/prisma.service';
 import { usePrismaAuthState } from './prisma-auth-state';
+
+if (ffmpegInstaller && ffmpegInstaller.path) {
+  ffmpeg.setFfmpegPath(ffmpegInstaller.path);
+}
 
 @Injectable()
 export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
@@ -197,25 +208,32 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
                 lowerUrl.match(/\.(jpg|jpeg|png|gif|webp|heic)(\?.*)?$/));
 
             if (isAudio) {
-              // Send Audio / Voice note attachment
-              const mimetype = lowerUrl.includes('.m4a')
-                ? 'audio/mp4'
-                : lowerUrl.includes('.ogg')
-                ? 'audio/ogg'
-                : lowerUrl.includes('.webm')
-                ? 'audio/webm'
-                : 'audio/mp3';
-
-              await this.sock.sendMessage(cleanNum, {
-                audio: { url },
-                mimetype,
-                ptt: true, // Send as playable push-to-talk voice note in WhatsApp chat
-              });
+              // Transcode voice note using ffmpeg (libopus, single channel, avoid_negative_ts) for native WhatsApp voice note compatibility
+              let oggPath: string | null = null;
+              try {
+                oggPath = await this.convertAudioToOggOpus(url);
+                await this.sock.sendMessage(cleanNum, {
+                  audio: { url: oggPath },
+                  mimetype: 'audio/ogg; codecs=opus',
+                  ptt: true, // Send as playable push-to-talk voice message in WhatsApp chat
+                });
+                this.logger.log(`WhatsApp voice note (opus transcoded) sent to ${cleanNum}`);
+              } catch (err: any) {
+                this.logger.warn(`FFmpeg audio conversion error (${err?.message}). Sending original audio URL as fallback.`);
+                await this.sock.sendMessage(cleanNum, {
+                  audio: { url },
+                  mimetype: lowerUrl.includes('.m4a') ? 'audio/mp4' : lowerUrl.includes('.webm') ? 'audio/webm' : 'audio/ogg',
+                  ptt: true,
+                });
+              } finally {
+                if (oggPath && fs.existsSync(oggPath)) {
+                  fs.unlink(oggPath, () => {});
+                }
+              }
 
               if (i === 0 && text) {
                 await this.sock.sendMessage(cleanNum, { text: `🎙️ *Voice Note Attachment*\n\n${text}` });
               }
-              this.logger.log(`WhatsApp audio note sent to ${cleanNum}: ${url}`);
             } else if (isVideo) {
               // Video attachment
               await this.sock.sendMessage(cleanNum, {
@@ -270,5 +288,56 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
       phoneNumber,
       accountName,
     };
+  }
+
+  /**
+   * Transcodes audio from input URL/file into an OGG container with Opus codec,
+   * single channel (-ac 1), and negative timestamp handling for native WhatsApp voice notes.
+   */
+  private async convertAudioToOggOpus(url: string): Promise<string> {
+    const tmpDir = os.tmpdir();
+    const id = Date.now() + '_' + Math.random().toString(36).substring(2, 7);
+    const tempInput = path.join(tmpDir, `input_${id}`);
+    const tempOutput = path.join(tmpDir, `output_${id}.ogg`);
+
+    // Download audio file to tempInput
+    await new Promise<void>((resolve, reject) => {
+      const protocol = url.startsWith('https') ? https : http;
+      const fileStream = fs.createWriteStream(tempInput);
+      protocol.get(url, (response) => {
+        if (response.statusCode && response.statusCode >= 400) {
+          return reject(new Error(`Failed to download audio: ${response.statusCode}`));
+        }
+        response.pipe(fileStream);
+        fileStream.on('finish', () => {
+          fileStream.close();
+          resolve();
+        });
+      }).on('error', (err) => {
+        fs.unlink(tempInput, () => {});
+        reject(err);
+      });
+    });
+
+    // Run ffmpeg with Baileys voice note specs: -c:a libopus -ac 1 -avoid_negative_ts make_zero
+    await new Promise<void>((resolve, reject) => {
+      ffmpeg(tempInput)
+        .audioCodec('libopus')
+        .audioChannels(1)
+        .outputOptions(['-avoid_negative_ts make_zero'])
+        .toFormat('ogg')
+        .on('error', (err) => {
+          fs.unlink(tempInput, () => {});
+          fs.unlink(tempOutput, () => {});
+          reject(err);
+        })
+        .on('end', () => {
+          fs.unlink(tempInput, () => {});
+          resolve();
+        })
+        .save(tempOutput);
+    });
+
+    return tempOutput;
   }
 }

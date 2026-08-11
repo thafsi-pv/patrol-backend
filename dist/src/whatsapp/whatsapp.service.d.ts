@@ -28,4 +28,5 @@ export declare class WhatsAppService implements OnModuleInit, OnModuleDestroy {
         phoneNumber: string | null;
         accountName: string | null;
     };
+    private convertAudioToOggOpus;
 }

@@ -41,6 +41,9 @@ var __importStar = (this && this.__importStar) || (function () {
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 var WhatsAppService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.WhatsAppService = void 0;
@@ -48,8 +51,18 @@ const common_1 = require("@nestjs/common");
 const config_1 = require("@nestjs/config");
 const baileys_1 = __importStar(require("@whiskeysockets/baileys"));
 const qrcode = __importStar(require("qrcode-terminal"));
+const fs = __importStar(require("fs"));
+const path = __importStar(require("path"));
+const os = __importStar(require("os"));
+const https = __importStar(require("https"));
+const http = __importStar(require("http"));
+const fluent_ffmpeg_1 = __importDefault(require("fluent-ffmpeg"));
+const ffmpeg_1 = __importDefault(require("@ffmpeg-installer/ffmpeg"));
 const prisma_service_1 = require("../prisma/prisma.service");
 const prisma_auth_state_1 = require("./prisma-auth-state");
+if (ffmpeg_1.default && ffmpeg_1.default.path) {
+    fluent_ffmpeg_1.default.setFfmpegPath(ffmpeg_1.default.path);
+}
 let WhatsAppService = WhatsAppService_1 = class WhatsAppService {
     config;
     prisma;
@@ -203,22 +216,32 @@ let WhatsAppService = WhatsAppService_1 = class WhatsAppService {
                                 lowerUrl.includes('/image/upload/') ||
                                 lowerUrl.match(/\.(jpg|jpeg|png|gif|webp|heic)(\?.*)?$/));
                         if (isAudio) {
-                            const mimetype = lowerUrl.includes('.m4a')
-                                ? 'audio/mp4'
-                                : lowerUrl.includes('.ogg')
-                                    ? 'audio/ogg'
-                                    : lowerUrl.includes('.webm')
-                                        ? 'audio/webm'
-                                        : 'audio/mp3';
-                            await this.sock.sendMessage(cleanNum, {
-                                audio: { url },
-                                mimetype,
-                                ptt: true,
-                            });
+                            let oggPath = null;
+                            try {
+                                oggPath = await this.convertAudioToOggOpus(url);
+                                await this.sock.sendMessage(cleanNum, {
+                                    audio: { url: oggPath },
+                                    mimetype: 'audio/ogg; codecs=opus',
+                                    ptt: true,
+                                });
+                                this.logger.log(`WhatsApp voice note (opus transcoded) sent to ${cleanNum}`);
+                            }
+                            catch (err) {
+                                this.logger.warn(`FFmpeg audio conversion error (${err?.message}). Sending original audio URL as fallback.`);
+                                await this.sock.sendMessage(cleanNum, {
+                                    audio: { url },
+                                    mimetype: lowerUrl.includes('.m4a') ? 'audio/mp4' : lowerUrl.includes('.webm') ? 'audio/webm' : 'audio/ogg',
+                                    ptt: true,
+                                });
+                            }
+                            finally {
+                                if (oggPath && fs.existsSync(oggPath)) {
+                                    fs.unlink(oggPath, () => { });
+                                }
+                            }
                             if (i === 0 && text) {
                                 await this.sock.sendMessage(cleanNum, { text: `🎙️ *Voice Note Attachment*\n\n${text}` });
                             }
-                            this.logger.log(`WhatsApp audio note sent to ${cleanNum}: ${url}`);
                         }
                         else if (isVideo) {
                             await this.sock.sendMessage(cleanNum, {
@@ -272,6 +295,47 @@ let WhatsAppService = WhatsAppService_1 = class WhatsAppService {
             phoneNumber,
             accountName,
         };
+    }
+    async convertAudioToOggOpus(url) {
+        const tmpDir = os.tmpdir();
+        const id = Date.now() + '_' + Math.random().toString(36).substring(2, 7);
+        const tempInput = path.join(tmpDir, `input_${id}`);
+        const tempOutput = path.join(tmpDir, `output_${id}.ogg`);
+        await new Promise((resolve, reject) => {
+            const protocol = url.startsWith('https') ? https : http;
+            const fileStream = fs.createWriteStream(tempInput);
+            protocol.get(url, (response) => {
+                if (response.statusCode && response.statusCode >= 400) {
+                    return reject(new Error(`Failed to download audio: ${response.statusCode}`));
+                }
+                response.pipe(fileStream);
+                fileStream.on('finish', () => {
+                    fileStream.close();
+                    resolve();
+                });
+            }).on('error', (err) => {
+                fs.unlink(tempInput, () => { });
+                reject(err);
+            });
+        });
+        await new Promise((resolve, reject) => {
+            (0, fluent_ffmpeg_1.default)(tempInput)
+                .audioCodec('libopus')
+                .audioChannels(1)
+                .outputOptions(['-avoid_negative_ts make_zero'])
+                .toFormat('ogg')
+                .on('error', (err) => {
+                fs.unlink(tempInput, () => { });
+                fs.unlink(tempOutput, () => { });
+                reject(err);
+            })
+                .on('end', () => {
+                fs.unlink(tempInput, () => { });
+                resolve();
+            })
+                .save(tempOutput);
+        });
+        return tempOutput;
     }
 };
 exports.WhatsAppService = WhatsAppService;

@@ -208,26 +208,37 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
                 lowerUrl.match(/\.(jpg|jpeg|png|gif|webp|heic)(\?.*)?$/));
 
             if (isAudio) {
-              // Transcode voice note using ffmpeg (libopus, single channel, avoid_negative_ts) for native WhatsApp voice note compatibility
-              let oggPath: string | null = null;
-              try {
-                oggPath = await this.convertAudioToOggOpus(url);
-                await this.sock.sendMessage(cleanNum, {
-                  audio: { url: oggPath },
-                  mimetype: 'audio/ogg; codecs=opus',
-                  ptt: true, // Send as playable push-to-talk voice message in WhatsApp chat
-                });
-                this.logger.log(`WhatsApp voice note (opus transcoded) sent to ${cleanNum}`);
-              } catch (err: any) {
-                this.logger.warn(`FFmpeg audio conversion error (${err?.message}). Sending original audio URL as fallback.`);
+              const isAlreadyOgg = lowerUrl.includes('.ogg');
+              if (isAlreadyOgg) {
+                // Audio is already native WhatsApp Ogg Opus — send directly with zero conversion overhead
                 await this.sock.sendMessage(cleanNum, {
                   audio: { url },
-                  mimetype: lowerUrl.includes('.m4a') ? 'audio/mp4' : lowerUrl.includes('.webm') ? 'audio/webm' : 'audio/ogg',
+                  mimetype: 'audio/ogg; codecs=opus',
                   ptt: true,
                 });
-              } finally {
-                if (oggPath && fs.existsSync(oggPath)) {
-                  fs.unlink(oggPath, () => {});
+                this.logger.log(`WhatsApp native voice note (direct .ogg) sent to ${cleanNum}`);
+              } else {
+                // Transcode non-OGG audio (e.g. iOS Safari .m4a / Chrome .webm) using ffmpeg
+                let oggPath: string | null = null;
+                try {
+                  oggPath = await this.convertAudioToOggOpus(url);
+                  await this.sock.sendMessage(cleanNum, {
+                    audio: { url: oggPath },
+                    mimetype: 'audio/ogg; codecs=opus',
+                    ptt: true,
+                  });
+                  this.logger.log(`WhatsApp voice note (ffmpeg transcoded) sent to ${cleanNum}`);
+                } catch (err: any) {
+                  this.logger.warn(`FFmpeg audio conversion error (${err?.message}). Sending original audio URL as fallback.`);
+                  await this.sock.sendMessage(cleanNum, {
+                    audio: { url },
+                    mimetype: lowerUrl.includes('.m4a') ? 'audio/mp4' : lowerUrl.includes('.webm') ? 'audio/webm' : 'audio/ogg',
+                    ptt: true,
+                  });
+                } finally {
+                  if (oggPath && fs.existsSync(oggPath)) {
+                    fs.unlink(oggPath, () => {});
+                  }
                 }
               }
 

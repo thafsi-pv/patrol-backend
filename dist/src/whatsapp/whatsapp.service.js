@@ -48,15 +48,19 @@ const common_1 = require("@nestjs/common");
 const config_1 = require("@nestjs/config");
 const baileys_1 = __importStar(require("@whiskeysockets/baileys"));
 const qrcode = __importStar(require("qrcode-terminal"));
-const path = __importStar(require("path"));
+const prisma_service_1 = require("../prisma/prisma.service");
+const prisma_auth_state_1 = require("./prisma-auth-state");
 let WhatsAppService = WhatsAppService_1 = class WhatsAppService {
     config;
+    prisma;
     logger = new common_1.Logger(WhatsAppService_1.name);
     sock = null;
     isConnected = false;
     failedPermanently = false;
-    constructor(config) {
+    clearSessionFn = null;
+    constructor(config, prisma) {
         this.config = config;
+        this.prisma = prisma;
     }
     retryCount = 0;
     async onModuleInit() {
@@ -66,9 +70,9 @@ let WhatsAppService = WhatsAppService_1 = class WhatsAppService {
         this.sock?.end(undefined);
     }
     async connectToWhatsApp() {
-        const sessionDir = this.config.get('WA_SESSION_DIR') || './wa-session';
-        const { state, saveCreds } = await (0, baileys_1.useMultiFileAuthState)(path.resolve(sessionDir));
         try {
+            const { state, saveCreds, clearSession } = await (0, prisma_auth_state_1.usePrismaAuthState)(this.prisma);
+            this.clearSessionFn = clearSession;
             this.sock = (0, baileys_1.default)({
                 auth: state,
                 printQRInTerminal: false,
@@ -89,19 +93,15 @@ let WhatsAppService = WhatsAppService_1 = class WhatsAppService {
                         statusCode === baileys_1.DisconnectReason.connectionReplaced) {
                         this.logger.error(statusCode === baileys_1.DisconnectReason.connectionReplaced
                             ? 'WhatsApp session was replaced by another device. Stopping — please reconnect from the admin panel.'
-                            : 'WhatsApp was logged out. Wiping session.');
+                            : 'WhatsApp was logged out. Clearing database session.');
                         this.retryCount = 0;
                         this.failedPermanently = true;
                         if (this.sock) {
                             this.sock.end(undefined);
                             this.sock = null;
                         }
-                        const fs = require('fs');
-                        const sessionDir = this.config.get('WA_SESSION_DIR') || './wa-session';
-                        const resolvedPath = require('path').resolve(sessionDir);
-                        if (fs.existsSync(resolvedPath)) {
-                            fs.rmSync(resolvedPath, { recursive: true, force: true });
-                            this.logger.log('WhatsApp session folder cleared.');
+                        if (this.clearSessionFn) {
+                            await this.clearSessionFn();
                         }
                         return;
                     }
@@ -153,16 +153,13 @@ let WhatsAppService = WhatsAppService_1 = class WhatsAppService {
             this.sock = null;
         }
         this.isConnected = false;
-        const fs = require('fs');
-        const sessionDir = this.config.get('WA_SESSION_DIR') || './wa-session';
-        const resolvedPath = path.resolve(sessionDir);
-        if (fs.existsSync(resolvedPath)) {
+        if (this.clearSessionFn) {
             try {
-                fs.rmSync(resolvedPath, { recursive: true, force: true });
-                this.logger.log('WhatsApp session state folder cleared.');
+                await this.clearSessionFn();
+                this.logger.log('WhatsApp session cleared from PostgreSQL DB.');
             }
             catch (err) {
-                this.logger.error('Failed to delete session state folder', err);
+                this.logger.error('Failed to delete session records from DB', err);
             }
         }
         if (!skipReconnect) {
@@ -261,6 +258,7 @@ let WhatsAppService = WhatsAppService_1 = class WhatsAppService {
 exports.WhatsAppService = WhatsAppService;
 exports.WhatsAppService = WhatsAppService = WhatsAppService_1 = __decorate([
     (0, common_1.Injectable)(),
-    __metadata("design:paramtypes", [config_1.ConfigService])
+    __metadata("design:paramtypes", [config_1.ConfigService,
+        prisma_service_1.PrismaService])
 ], WhatsAppService);
 //# sourceMappingURL=whatsapp.service.js.map

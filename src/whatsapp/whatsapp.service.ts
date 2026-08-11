@@ -2,12 +2,12 @@ import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/commo
 import { ConfigService } from '@nestjs/config';
 import makeWASocket, {
   DisconnectReason,
-  useMultiFileAuthState,
   WASocket,
 } from '@whiskeysockets/baileys';
 import { Boom } from '@hapi/boom';
 import * as qrcode from 'qrcode-terminal';
-import * as path from 'path';
+import { PrismaService } from '../prisma/prisma.service';
+import { usePrismaAuthState } from './prisma-auth-state';
 
 @Injectable()
 export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
@@ -15,8 +15,12 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
   private sock: WASocket | null = null;
   private isConnected = false;
   private failedPermanently = false;
+  private clearSessionFn: (() => Promise<void>) | null = null;
 
-  constructor(private readonly config: ConfigService) {}
+  constructor(
+    private readonly config: ConfigService,
+    private readonly prisma: PrismaService,
+  ) {}
 
   private retryCount = 0;
 
@@ -29,10 +33,10 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async connectToWhatsApp() {
-    const sessionDir = this.config.get<string>('WA_SESSION_DIR') || './wa-session';
-    const { state, saveCreds } = await useMultiFileAuthState(path.resolve(sessionDir));
-
     try {
+      const { state, saveCreds, clearSession } = await usePrismaAuthState(this.prisma);
+      this.clearSessionFn = clearSession;
+
       this.sock = makeWASocket({
         auth: state,
         printQRInTerminal: false,
@@ -63,22 +67,16 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
             this.logger.error(
               statusCode === DisconnectReason.connectionReplaced
                 ? 'WhatsApp session was replaced by another device. Stopping — please reconnect from the admin panel.'
-                : 'WhatsApp was logged out. Wiping session.'
+                : 'WhatsApp was logged out. Clearing database session.'
             );
             this.retryCount = 0;
             this.failedPermanently = true;
-            // End socket cleanly without triggering further connection.update events
             if (this.sock) {
               this.sock.end(undefined);
               this.sock = null;
             }
-            // Wipe session files so a fresh link is required
-            const fs = require('fs');
-            const sessionDir = this.config.get<string>('WA_SESSION_DIR') || './wa-session';
-            const resolvedPath = require('path').resolve(sessionDir);
-            if (fs.existsSync(resolvedPath)) {
-              fs.rmSync(resolvedPath, { recursive: true, force: true });
-              this.logger.log('WhatsApp session folder cleared.');
+            if (this.clearSessionFn) {
+              await this.clearSessionFn();
             }
             return;
           }
@@ -131,18 +129,16 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
     }
     this.isConnected = false;
 
-    // Delete session files
-    const fs = require('fs');
-    const sessionDir = this.config.get<string>('WA_SESSION_DIR') || './wa-session';
-    const resolvedPath = path.resolve(sessionDir);
-    if (fs.existsSync(resolvedPath)) {
+    // Delete session records from PostgreSQL database
+    if (this.clearSessionFn) {
       try {
-        fs.rmSync(resolvedPath, { recursive: true, force: true });
-        this.logger.log('WhatsApp session state folder cleared.');
+        await this.clearSessionFn();
+        this.logger.log('WhatsApp session cleared from PostgreSQL DB.');
       } catch (err) {
-        this.logger.error('Failed to delete session state folder', err);
+        this.logger.error('Failed to delete session records from DB', err);
       }
     }
+
     if (!skipReconnect) {
       this.failedPermanently = false;
       await this.connectToWhatsApp();

@@ -220,3 +220,10 @@ model AuditLog {
   @@index([userId])
   @@index([createdAt])
 }
+
+model WhatsAppSession {
+  key       String   @id
+  value     String   // JSON stringified Baileys auth credential / signal key data
+  updatedAt DateTime @updatedAt
+}
+

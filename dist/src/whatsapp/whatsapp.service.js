@@ -86,10 +86,23 @@ let WhatsAppService = WhatsAppService_1 = class WhatsAppService {
         try {
             const { state, saveCreds, clearSession } = await (0, prisma_auth_state_1.usePrismaAuthState)(this.prisma);
             this.clearSessionFn = clearSession;
+            let version = [2, 3000, 1017578440];
+            try {
+                const { version: latestVersion } = await (0, baileys_1.fetchLatestWaWebVersion)({});
+                if (latestVersion) {
+                    version = latestVersion;
+                    this.logger.log(`Using fetched WhatsApp Web version: ${version.join('.')}`);
+                }
+            }
+            catch (versionErr) {
+                this.logger.warn(`Failed to fetch latest WA version, using fallback ${version.join('.')}:`, versionErr);
+            }
             this.sock = (0, baileys_1.default)({
                 auth: state,
                 printQRInTerminal: false,
                 defaultQueryTimeoutMs: undefined,
+                browser: baileys_1.Browsers.macOS('Chrome'),
+                version,
             });
             this.sock.ev.on('creds.update', saveCreds);
             this.sock.ev.on('connection.update', async (update) => {
@@ -101,6 +114,11 @@ let WhatsAppService = WhatsAppService_1 = class WhatsAppService {
                 if (connection === 'close') {
                     this.isConnected = false;
                     const statusCode = lastDisconnect?.error?.output?.statusCode;
+                    if (statusCode === baileys_1.DisconnectReason.restartRequired) {
+                        this.logger.log('WhatsApp server requested connection restart (Status: 515). Reconnecting...');
+                        this.connectToWhatsApp();
+                        return;
+                    }
                     this.logger.warn(`WhatsApp connection closed (Status: ${statusCode}).`);
                     if (statusCode === baileys_1.DisconnectReason.loggedOut ||
                         statusCode === baileys_1.DisconnectReason.connectionReplaced) {

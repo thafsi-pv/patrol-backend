@@ -3,6 +3,8 @@ import { ConfigService } from '@nestjs/config';
 import makeWASocket, {
   DisconnectReason,
   WASocket,
+  Browsers,
+  fetchLatestWaWebVersion,
 } from '@whiskeysockets/baileys';
 import { Boom } from '@hapi/boom';
 import * as qrcode from 'qrcode-terminal';
@@ -48,10 +50,23 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
       const { state, saveCreds, clearSession } = await usePrismaAuthState(this.prisma);
       this.clearSessionFn = clearSession;
 
+      let version: [number, number, number] = [2, 3000, 1017578440]; // Safe fallback version
+      try {
+        const { version: latestVersion } = await fetchLatestWaWebVersion({});
+        if (latestVersion) {
+          version = latestVersion;
+          this.logger.log(`Using fetched WhatsApp Web version: ${version.join('.')}`);
+        }
+      } catch (versionErr) {
+        this.logger.warn(`Failed to fetch latest WA version, using fallback ${version.join('.')}:`, versionErr);
+      }
+
       this.sock = makeWASocket({
         auth: state,
         printQRInTerminal: false,
         defaultQueryTimeoutMs: undefined,
+        browser: Browsers.macOS('Chrome'),
+        version,
       });
 
       this.sock.ev.on('creds.update', saveCreds);

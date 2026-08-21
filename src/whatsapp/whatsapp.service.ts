@@ -83,6 +83,13 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
           this.isConnected = false;
           const statusCode = (lastDisconnect?.error as Boom)?.output?.statusCode;
 
+          // ── Server-requested restart (515) — expected behavior during pairing/handshake ──
+          if (statusCode === DisconnectReason.restartRequired) {
+            this.logger.log('WhatsApp server requested connection restart (Status: 515). Reconnecting...');
+            this.connectToWhatsApp();
+            return;
+          }
+
           this.logger.warn(`WhatsApp connection closed (Status: ${statusCode}).`);
 
           // ── Permanent failures — stop immediately, no retry ──────────────

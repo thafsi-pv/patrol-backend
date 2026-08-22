@@ -9,6 +9,7 @@ export declare class WhatsAppService implements OnModuleInit, OnModuleDestroy {
     private isConnected;
     private failedPermanently;
     private clearSessionFn;
+    private currentQr;
     constructor(config: ConfigService, prisma: PrismaService);
     private retryCount;
     onModuleInit(): Promise<void>;
@@ -21,6 +22,7 @@ export declare class WhatsAppService implements OnModuleInit, OnModuleDestroy {
         imageUrl: string;
         mediaType?: string;
     })[]): Promise<void>;
+    getQrCode(): string | null;
     getConnectionStatus(): {
         connected: boolean;
         registered: boolean;

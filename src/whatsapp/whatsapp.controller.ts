@@ -16,6 +16,13 @@ export class WhatsAppController {
     return this.whatsappService.getConnectionStatus();
   }
 
+  @Get('qr')
+  @Roles(Role.ADMIN)
+  getQr() {
+    const qr = this.whatsappService.getQrCode();
+    return { qr };
+  }
+
   @Post('pair')
   @Roles(Role.ADMIN)
   async getPairingCode(@Body('phoneNumber') phoneNumber: string) {

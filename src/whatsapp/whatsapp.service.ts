@@ -29,6 +29,7 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
   private isConnected = false;
   private failedPermanently = false;
   private clearSessionFn: (() => Promise<void>) | null = null;
+  private currentQr: string | null = null;
 
   constructor(
     private readonly config: ConfigService,
@@ -75,6 +76,7 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
         const { connection, lastDisconnect, qr } = update;
 
         if (qr) {
+          this.currentQr = qr;
           this.logger.log('Scan this WhatsApp QR code to link device:');
           qrcode.generate(qr, { small: true });
         }
@@ -127,6 +129,7 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
           }
         } else if (connection === 'open') {
           this.isConnected = true;
+          this.currentQr = null; // clear QR once connected
           this.retryCount = 0;
           this.failedPermanently = false;
           this.logger.log('WhatsApp connection successfully opened!');
@@ -305,6 +308,10 @@ export class WhatsAppService implements OnModuleInit, OnModuleDestroy {
     } catch (err) {
       this.logger.error(`Failed to send WhatsApp message to ${to}`, err);
     }
+  }
+
+  getQrCode(): string | null {
+    return this.currentQr;
   }
 
   getConnectionStatus() {

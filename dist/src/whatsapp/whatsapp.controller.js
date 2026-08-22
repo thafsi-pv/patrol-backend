@@ -27,6 +27,10 @@ let WhatsAppController = class WhatsAppController {
     getStatus() {
         return this.whatsappService.getConnectionStatus();
     }
+    getQr() {
+        const qr = this.whatsappService.getQrCode();
+        return { qr };
+    }
     async getPairingCode(phoneNumber) {
         const code = await this.whatsappService.getPairingCode(phoneNumber);
         return { code };
@@ -48,6 +52,13 @@ __decorate([
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", void 0)
 ], WhatsAppController.prototype, "getStatus", null);
+__decorate([
+    (0, common_1.Get)('qr'),
+    (0, roles_decorator_1.Roles)(client_1.Role.ADMIN),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", void 0)
+], WhatsAppController.prototype, "getQr", null);
 __decorate([
     (0, common_1.Post)('pair'),
     (0, roles_decorator_1.Roles)(client_1.Role.ADMIN),

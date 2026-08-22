@@ -9,6 +9,9 @@ export declare class WhatsAppController {
         phoneNumber: string | null;
         accountName: string | null;
     };
+    getQr(): {
+        qr: string | null;
+    };
     getPairingCode(phoneNumber: string): Promise<{
         code: string;
     }>;

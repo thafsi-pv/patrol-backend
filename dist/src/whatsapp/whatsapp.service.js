@@ -71,6 +71,7 @@ let WhatsAppService = WhatsAppService_1 = class WhatsAppService {
     isConnected = false;
     failedPermanently = false;
     clearSessionFn = null;
+    currentQr = null;
     constructor(config, prisma) {
         this.config = config;
         this.prisma = prisma;
@@ -108,6 +109,7 @@ let WhatsAppService = WhatsAppService_1 = class WhatsAppService {
             this.sock.ev.on('connection.update', async (update) => {
                 const { connection, lastDisconnect, qr } = update;
                 if (qr) {
+                    this.currentQr = qr;
                     this.logger.log('Scan this WhatsApp QR code to link device:');
                     qrcode.generate(qr, { small: true });
                 }
@@ -150,6 +152,7 @@ let WhatsAppService = WhatsAppService_1 = class WhatsAppService {
                 }
                 else if (connection === 'open') {
                     this.isConnected = true;
+                    this.currentQr = null;
                     this.retryCount = 0;
                     this.failedPermanently = false;
                     this.logger.log('WhatsApp connection successfully opened!');
@@ -311,6 +314,9 @@ let WhatsAppService = WhatsAppService_1 = class WhatsAppService {
         catch (err) {
             this.logger.error(`Failed to send WhatsApp message to ${to}`, err);
         }
+    }
+    getQrCode() {
+        return this.currentQr;
     }
     getConnectionStatus() {
         const me = this.sock?.authState?.creds?.me;
